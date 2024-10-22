@@ -1,6 +1,9 @@
 #script developed by Damian Dalle Nogare at the Human Technopole Image Analysis Facility
 #released under BSD-3 License, 2024
 
+
+#TODO: Add channel labels to saved images
+
 print('starting pipeline')
 print('importing libraries')
 import skimage
@@ -35,15 +38,21 @@ def process_images(im, filename, savefolder, dapi_channel):
 
     for channel in range(0, im.shape[0]):
         if channel == dapi_channel:
-            skimage.io.imsave(savefolder + os.path.sep + 'channel_dapi' + os.path.sep + filename[:-4] + '_sum.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
+            skimage.io.imsave(savefolder + os.path.sep + 'channel_dapi' + os.path.sep + filename[:-4] + '_sum_ch' + str(channel) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
         else:
-            skimage.io.imsave(savefolder + os.path.sep + 'channel_' + str(channel) + os.path.sep + filename[:-4] + '_sum.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
+            skimage.io.imsave(savefolder + os.path.sep + 'channel_' + str(channel) + os.path.sep + filename[:-4] + '_sum_ch' + str(channel) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
 
 
 
 raw_folder = easygui.diropenbox('Select raw data folder')
 output_folder = easygui.diropenbox('Select folder to store results in')
 dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Channel", 3, 0, 5)
+
+
+#TODO: Add size exclusion threshold
+#dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Channel", 3, 0, 5)
+
+
 
 model_list = os.listdir('models')
 cellpose_model = easygui.choicebox('select cellpose model', 'model', model_list)
@@ -93,15 +102,6 @@ for file in tqdm(raw_data_list):
 #Cellpose segment the images
 print('===============================')
 print('segmenting images')
-
-#CONFIG_NAME = 'config.yaml'
-#with open(CONFIG_NAME, "r") as f:
-#	config = yaml.safe_load(f)
-
-#if filetype == 'nd2':
-#	cellpose_model = config['cellpose_model_nd2']
-#if filetype == 'czi':
-#	cellpose_model = config['cellpose_model_czi']
 
 model = models.CellposeModel(pretrained_model=cellpose_model, gpu=True)
 
