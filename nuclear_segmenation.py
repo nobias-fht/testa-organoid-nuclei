@@ -129,7 +129,7 @@ for mask in tqdm(masks):
     subfolder = intensity_image_folder + os.path.sep + mask[:-8]
     os.makedirs(subfolder, exist_ok=True)
     for position, channel in enumerate(channels_to_quantify):
-        measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask)        
+        measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask[:-4]+'_ch' + str(channel) + '.tif')        
         stats = skimage.measure.regionprops_table(mask_im, intensity_image=measure_im, properties=['label', 'mean_intensity'])
         if not os.path.isfile(intensity_image_folder + os.path.sep + mask + '_ch' + str(channel) + '.tif'):
             label_to_mean_intensity = {label: mean_intensity for label, mean_intensity in zip(stats['label'], stats['mean_intensity'])}
