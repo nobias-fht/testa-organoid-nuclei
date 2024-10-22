@@ -142,3 +142,26 @@ for mask in tqdm(masks):
         df['label'] = stats['label']
         df['intensity_ch_' + str(channel)] = rounded_intensity
         df.to_csv(quantification_folder + os.path.sep + mask + '.csv')
+
+#rename files with channel names
+
+channels = os.listdir(sum_projections_folder)
+channels
+
+for channel in channels:
+    if channel[-1] == 'i':
+        ch = dapi_channel
+        file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
+        for file in file_list:
+            print(file)
+            src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
+            dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
+            os.rename(src, dst)
+    else:
+        ch = channel[-1]
+        file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
+        for file in file_list:
+            print(file)
+            src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
+            dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
+            os.rename(src, dst)
