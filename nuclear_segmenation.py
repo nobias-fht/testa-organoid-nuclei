@@ -2,7 +2,6 @@
 #released under BSD-3 License, 2024
 
 
-#TODO: Add channel labels to saved images
 
 print('starting pipeline')
 print('importing libraries')
@@ -18,6 +17,9 @@ import easygui
 #import matplotlib.pyplot as plt
 import nd2
 print('imports finished')
+
+
+#SD - nuclei is Ch 2
 
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -38,9 +40,9 @@ def process_images(im, filename, savefolder, dapi_channel):
 
     for channel in range(0, im.shape[0]):
         if channel == dapi_channel:
-            skimage.io.imsave(savefolder + os.path.sep + 'channel_dapi' + os.path.sep + filename[:-4] + '_sum_ch' + str(channel) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
+            skimage.io.imsave(savefolder + os.path.sep + 'channel_dapi' + os.path.sep + filename[:-4] + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
         else:
-            skimage.io.imsave(savefolder + os.path.sep + 'channel_' + str(channel) + os.path.sep + filename[:-4] + '_sum_ch' + str(channel) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
+            skimage.io.imsave(savefolder + os.path.sep + 'channel_' + str(channel) + os.path.sep + filename[:-4] + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
 
 
 
@@ -129,7 +131,7 @@ for mask in tqdm(masks):
     subfolder = intensity_image_folder + os.path.sep + mask[:-8]
     os.makedirs(subfolder, exist_ok=True)
     for position, channel in enumerate(channels_to_quantify):
-        measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask[:-4]+'_ch' + str(channel) + '.tif')        
+        measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask)        
         stats = skimage.measure.regionprops_table(mask_im, intensity_image=measure_im, properties=['label', 'mean_intensity'])
         if not os.path.isfile(intensity_image_folder + os.path.sep + mask + '_ch' + str(channel) + '.tif'):
             label_to_mean_intensity = {label: mean_intensity for label, mean_intensity in zip(stats['label'], stats['mean_intensity'])}
