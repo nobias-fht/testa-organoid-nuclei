@@ -54,7 +54,6 @@ output_folder = easygui.diropenbox('Select folder to store results in')
 dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Channel", 3, 0, 5)
 
 
-#TODO: Add size exclusion threshold
 size_threshold = easygui.integerbox("Enter the minimum nucleus size (in pixels)", "Minimum Size", 100, 0, 500)
 
 
@@ -79,6 +78,9 @@ os.makedirs(sum_projections_folder, exist_ok=True)
 os.makedirs(masks_folder, exist_ok=True)
 
 
+
+
+
 raw_data_list = os.listdir(raw_folder)
 
 #check whether czi or nd2 format
@@ -92,6 +94,21 @@ for i in range(0, num_channels):
 	else:
 		os.makedirs(sum_projections_folder + os.path.sep + 'channel_' + str(i), exist_ok=True)
 		channels_to_quantify.append(i)
+
+
+#make the summary results dataframe
+titles_list = []
+
+titles_list.append('Filename')
+titles_list.append('total_cell_number')
+titles_list.append('total_area')
+
+
+for channel in channels_to_quantify:
+    titles_list.append(f'channel_{channel}_mean_intensity') 
+    titles_list.append(f'channel_{channel}_total_intensity')
+                       
+df_summary = pd.DataFrame(columns=titles_list)
 
 
 #loop through and load files and save sum projections if needed
@@ -114,20 +131,18 @@ nuc_im_list = os.listdir(nuc_im_folder)
 
 
 for nuc_im in nuc_im_list:
-    if os.path.isfile(masks_folder + os.path.sep + nuc_im[:-4] + '.tif'):
-        print('file already segmented, skipping')
-    else:
-        print('segmenting ' + nuc_im)
-        im = skimage.io.imread(nuc_im_folder + os.path.sep + nuc_im)
-        masks, flows, styles  = model.eval(im, diameter=None, flow_threshold=None, channels=[0,0])
-        skimage.io.imsave(masks_folder + os.path.sep + nuc_im[:-4]  + '.tif', masks, check_contrast=False)                      
+  
+    print('segmenting ' + nuc_im)
+    im = skimage.io.imread(nuc_im_folder + os.path.sep + nuc_im)
+    masks, flows, styles  = model.eval(im, diameter=None, flow_threshold=None, channels=[0,0])
+    skimage.io.imsave(masks_folder + os.path.sep + nuc_im[:-4]  + '.tif', masks, check_contrast=False)                      
         
 #create the intensity images and quantification csv files
 print('===============================')
 print('quantifying images and creating output files')
 
 df_summary = pd.DataFrame()
-
+result_row = []
 masks = os.listdir(masks_folder)
 for mask in tqdm(masks):
     df = pd.DataFrame()
@@ -137,13 +152,12 @@ for mask in tqdm(masks):
     for position, channel in enumerate(channels_to_quantify):
         measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask)        
         stats = skimage.measure.regionprops_table(mask_im, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
-        
+    
 
-
-
-        
         #filter out small objects
         filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
+
+     
 
         if not os.path.isfile(intensity_image_folder + os.path.sep + mask + '_ch' + str(channel) + '.tif'):
             
@@ -161,14 +175,66 @@ for mask in tqdm(masks):
 
             skimage.io.imsave(subfolder + os.path.sep + mask  + '_ch' + str(channel) + '.tif', intensity_image.astype(np.uint16), check_contrast=False)
         rounded_intensity = [ '%.2f' % elem for elem in filtered_stats['mean_intensity'] ]
+
         df['label'] = filtered_stats['label']
+        df['area'] = filtered_stats['area']
         df['intensity_ch_' + str(channel)] = rounded_intensity
         df.to_csv(quantification_folder + os.path.sep + mask + '.csv')
+        
 
+
+
+
+#make the summary dataframe
+
+outputs = os.listdir(quantification_folder)
+
+# Initialize an empty list to store summary data
+summary_data = []
+
+# Iterate through each output file
+for output in outputs:
+    # Read the DataFrame from the file
+    df = pd.read_csv(quantification_folder + os.path.sep + output)
+
+    # Compute the required statistics
+    filename = output[:-4]
+    num_elements = df['label'].nunique()
+    sum_areas = df['area'].sum()
+
+    channels_intensity = []
+    channels_intensity_mean = []
+    channel_names_sum = []
+    channel_names_mean = []
+    for channel in channels_to_quantify:
+        channel_names_sum.append('sum_intensity_channel_' + str(channel))
+        channel_names_mean.append('mean_intensity_channel_' + str(channel))
+        intensity_sum = df['intensity_ch_' + str(channel)] * df['area']          
+
+        channels_intensity.append(np.round(intensity_sum.sum()))
+        channels_intensity_mean.append(np.round(np.mean(df['intensity_ch_' + str(channel)])))
+
+        
+    
+    temp_list = [filename, num_elements, sum_areas]
+    name_list = ['filename', 'number of cells', 'sum of all areas']
+
+    for i, el in enumerate(channel_names_sum):
+        name_list.append(el)
+        name_list.append(channel_names_mean[i])
+        temp_list.append(channels_intensity[i])    
+        temp_list.append(channels_intensity_mean[i])
+    # Append the statistics to the summary list
+    summary_data.append(temp_list)
+# Create a summary DataFrame
+summary_df = pd.DataFrame(summary_data, columns=name_list)
+summary_df.to_csv(output_folder + os.path.sep + 'summary.csv')
+
+
+
+#rename the files
 
 channels = os.listdir(sum_projections_folder)
-channels
-
 for channel in channels:
     if channel[-1] == 'i':
         ch = dapi_channel
