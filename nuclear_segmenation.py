@@ -26,6 +26,9 @@ dname = os.path.dirname(abspath)
 os.chdir(dname)
 print(os.getcwd())
 
+
+
+
 def load_image(file_path, file_type):
     if file_type == 'nd2':
         im = nd2.imread(file_path)
@@ -52,7 +55,7 @@ dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Ch
 
 
 #TODO: Add size exclusion threshold
-#dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Channel", 3, 0, 5)
+size_threshold = easygui.integerbox("Enter the minimum nucleus size (in pixels)", "Minimum Size", 100, 0, 500)
 
 
 
@@ -77,7 +80,6 @@ os.makedirs(masks_folder, exist_ok=True)
 
 
 raw_data_list = os.listdir(raw_folder)
-
 
 #check whether czi or nd2 format
 filetype = raw_data_list[0].split('.')[-1]
@@ -112,7 +114,7 @@ nuc_im_list = os.listdir(nuc_im_folder)
 
 
 for nuc_im in nuc_im_list:
-    if os.path.isfile(masks_folder + os.path.sep + nuc_im[:-4]):
+    if os.path.isfile(masks_folder + os.path.sep + nuc_im[:-4] + '.tif'):
         print('file already segmented, skipping')
     else:
         print('segmenting ' + nuc_im)
@@ -124,6 +126,8 @@ for nuc_im in nuc_im_list:
 print('===============================')
 print('quantifying images and creating output files')
 
+df_summary = pd.DataFrame()
+
 masks = os.listdir(masks_folder)
 for mask in tqdm(masks):
     df = pd.DataFrame()
@@ -132,18 +136,35 @@ for mask in tqdm(masks):
     os.makedirs(subfolder, exist_ok=True)
     for position, channel in enumerate(channels_to_quantify):
         measure_im = skimage.io.imread(sum_projections_folder + os.path.sep + 'channel_' + str(channel) + os.path.sep + mask)        
-        stats = skimage.measure.regionprops_table(mask_im, intensity_image=measure_im, properties=['label', 'mean_intensity'])
+        stats = skimage.measure.regionprops_table(mask_im, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
+        
+
+
+
+        
+        #filter out small objects
+        filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
+
         if not os.path.isfile(intensity_image_folder + os.path.sep + mask + '_ch' + str(channel) + '.tif'):
-            label_to_mean_intensity = {label: mean_intensity for label, mean_intensity in zip(stats['label'], stats['mean_intensity'])}
-            label_to_mean_intensity[0] = 0
-            intensity_image = np.vectorize(label_to_mean_intensity.get)(mask_im)
+            
+            max_label = mask_im.max()
+            lookup_array = np.zeros(max_label + 1, dtype=np.float32)
+            
+            for label, mean_intensity, area in zip(stats['label'], stats['mean_intensity'], stats['area']):
+                if area > size_threshold:
+                    lookup_array[label] = mean_intensity
+        
+            # Map the mask_im to the intensity image using the lookup array
+            intensity_image = lookup_array[mask_im]
+    
+
+
             skimage.io.imsave(subfolder + os.path.sep + mask  + '_ch' + str(channel) + '.tif', intensity_image.astype(np.uint16), check_contrast=False)
-        rounded_intensity = [ '%.2f' % elem for elem in stats['mean_intensity'] ]
-        df['label'] = stats['label']
+        rounded_intensity = [ '%.2f' % elem for elem in filtered_stats['mean_intensity'] ]
+        df['label'] = filtered_stats['label']
         df['intensity_ch_' + str(channel)] = rounded_intensity
         df.to_csv(quantification_folder + os.path.sep + mask + '.csv')
 
-#rename files with channel names
 
 channels = os.listdir(sum_projections_folder)
 channels
@@ -153,7 +174,6 @@ for channel in channels:
         ch = dapi_channel
         file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
         for file in file_list:
-            print(file)
             src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
             dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
             os.rename(src, dst)
@@ -161,7 +181,6 @@ for channel in channels:
         ch = channel[-1]
         file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
         for file in file_list:
-            print(file)
             src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
             dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
             os.rename(src, dst)
