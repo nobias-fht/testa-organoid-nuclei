@@ -4,7 +4,7 @@ Pipeline for segmenting and quantifying nuclear marker expression in organoid im
 # Requirements
 This pipeline was tested on a VDI with an 8GB Nvidia A40 
 
-# Installing the pipeline
+# Installing the pipeline (first time only)
 - Make a folder to store the pipeline files in (for example, a sibfolder in your home folder).
 - Open a terminal window and navigate to that folder. On the VDI, you can right-click on a folder in the file manager and select "Open in Terminal"
 - From this terminal, initialize a git repository by typing `git init`.
