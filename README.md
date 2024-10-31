@@ -10,7 +10,7 @@ This pipeline was tested on a VDI with an 8GB Nvidia A40
 - From this terminal, initialize a git repository by typing `git init`.
 - Download the pipeline by typing `git pull https://github.com/nobias-fht/testa-organoid-nuclei`.
 - Create a conda environment by typing `conda env create -f nobias.yml`
-
+- Copy the `models` folder into the same folder as the scripts
 # Running the pipeline
 - In a terminal, navigate to the folder you placed the pipeline in. Before running, ensure that you have the latest version of the script by running the terminal command `git pull` from the folder you have the scripts installed in.
 - Activate the enviromment by typing `conda activate nobias`. the prompt on the left of the terminal should change from (base) to (nobias).
