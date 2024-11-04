@@ -75,22 +75,6 @@ for channel in range(0, num_channels):
     if channel != dapi_channel:
         channels_to_quantify.append(channel)
 
-
-
-#make the summary results dataframe
-# titles_list = []
-
-# titles_list.append('Filename')
-# titles_list.append('total_cell_number')
-# titles_list.append('total_area')
-
-
-# for channel in channels_to_quantify:
-#     titles_list.append(f'channel_{channel}_mean_intensity') 
-#     titles_list.append(f'channel_{channel}_total_intensity')
-                       
-# df_summary = pd.DataFrame(columns=titles_list)
-
 for file in file_paths:
     
     filename = os.path.basename(file)
