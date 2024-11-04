@@ -16,7 +16,7 @@ This pipeline was tested on a VDI with an 8GB Nvidia A40
 - Activate the enviromment by typing `conda activate nobias`. the prompt on the left of the terminal should change from (base) to (nobias).
 - Run the pipeline by typing:
 	- `python nuclear_segmentation.py` (if your files are all in one folder)
-	- `spython analysis_recursive.py' (if your files are stored in subfolders within the main folder)
+	- `python analysis_recursive.py` (if your files are stored in subfolders within the main folder)
 
 - When prompted, select:
 
