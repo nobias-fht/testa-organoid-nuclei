@@ -226,20 +226,24 @@ for folder in folders:
         
             channels = os.listdir(sum_folder)
             for channel in channels:
-                if channel[-1] == 'i':
-                    ch = dapi_channel
-                    file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
-                    for file in file_list:
-                        src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
-                        dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
-                        os.rename(src, dst)
-                else:
-                    ch = channel[-1]
-                    file_list = os.listdir(sum_projections_folder + os.path.sep + channel)
-                    for file in file_list:
-                        src = sum_projections_folder + os.path.sep + channel + os.path.sep + file
-                        dst = sum_projections_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
-                        os.rename(src, dst)
+                if not channel.startswith('.'):
+                    if channel[-1] == 'i':
+                        ch = 2
+                        file_list = os.listdir(sum_folder + os.path.sep + channel)
+                        for file in file_list:
+                            if not file.startswith('.'):
+                                src = sum_folder + os.path.sep + channel + os.path.sep + file
+                                dst = sum_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
+                                os.rename(src, dst)
+                    else:
+                        ch = channel[-1]
+                        file_list = os.listdir(sum_folder + os.path.sep + channel)
+                        for file in file_list:
+                            if not file.startswith('.'):
+                                src = sum_folder + os.path.sep + channel + os.path.sep + file
+                                dst = sum_folder + os.path.sep + channel + os.path.sep + file[:-4] + '_ch' + str(ch) + '.tif'
+                                os.rename(src, dst)
+
 
 
 print('pipeline finished')
