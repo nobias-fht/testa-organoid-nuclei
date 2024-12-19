@@ -26,7 +26,6 @@ If you have previously installed a  version of the pipeline, you must remove the
 1. The input folder where the raw data to be quantified is
 2. The output folder to store the results
 3. The channel where DAPI is in the stack (Note that this is `zero-indexed`, meaning that if DAPI is in the first channnel you would put '0' for this, if it is ins the second channel '1', and so on.
-4. The minimium size for a nucleus to be counted (in pixels, default = 100)
 
 
 ## Step 2: Quantifying the nuclear intensity 
