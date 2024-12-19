@@ -27,6 +27,7 @@ dependencies:
   - wheel=0.45.1=pyhd8ed1ab_1
   - pip:
       - aicsimageio==4.14.0
+      - aicspylibczi==3.2.0
       - aiobotocore==2.5.4
       - aiohappyeyeballs==2.4.4
       - aiohttp==3.11.11
