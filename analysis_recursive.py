@@ -15,7 +15,6 @@ from aicsimageio import AICSImage, imread
 import easygui
 import glob
 import subprocess
-import nd2
 import pyclesperanto as cle
 device = cle.select_device("AQ")
 print("Using GPU: ", device)
@@ -60,7 +59,6 @@ def process_images(im, filename, raw_savefolder, bg_sub_folder, dapi_channel):
 raw_folder = easygui.diropenbox('Select raw data folder')
 output_folder = easygui.diropenbox('Select folder to store results in')
 dapi_channel = easygui.integerbox("Enter the DAPI chanenl (0 indexed)", "DAPI Channel", 3, 0, 5)
-size_threshold = easygui.integerbox("Enter the minimum nucleus size (in pixels)", "Minimum Size", 100, 0, 500)
 
 
 cellpose_model = 'models/Claudio_czi'
