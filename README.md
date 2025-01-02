@@ -3,7 +3,7 @@
 Pipeline for segmenting and quantifying nuclear marker expression in organoid images from 2D slide scanner. Written by Damian Dalle Nogare at the BioImage Analysis Infrastruture Unit of the National Facility for Data Handling and Analysis at Human Technopole, Milan. Licenced under BSD-3.
 
 # Important Note
-If you have previously installed a  version of the pipeline, you must remove the old environment and install a new one. Before proceeding to the next step, remove any existing environments by, for example
+If you have previously installed a  version of the pipeline, you must remove the old environment and install a new one, as some requirements have changed. Before proceeding to the next step, remove any existing environments by, for example
 `conda env remove --name nobias`
 
 # Installing the pipeline (first time only)
