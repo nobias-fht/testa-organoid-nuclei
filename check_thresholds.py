@@ -197,28 +197,6 @@ text_box_thresh = QLineEdit()
 text_box_thresh.setReadOnly(True)  # Make the text box read-only
 layout.addWidget(text_box_thresh)
 
-# label = QLabel("Manual Threshold")
-# layout.addWidget(label)  # Add the label to the layout
-
-# text_box = QLineEdit()
-# text_box.setReadOnly(False)  # Make the text box read-only
-# layout.addWidget(text_box)
-
-# # Create a slider and connect its value changed signal to on_slider_change function
-# slider = QSlider(Qt.Horizontal)
-# slider.setMinimum(0)
-# slider.setMinimum(0)  # 0 * 20 = 0
-# slider.setMaximum(65500)  # 10 * 20 = 200
-# slider.setSingleStep(1)  # 0.05 * 20 = 1
-# slider.setValue(20)
-# #on_slider_change(20)
-# slider.valueChanged.connect(on_slider_change)
-# layout.addWidget(slider)
-
-# button = QPushButton("Apply Manual threshold")
-# button.clicked.connect(on_segment_button_click)
-# layout.addWidget(button)
-
 toggle_button = QPushButton("Toggle Positive Nuclei")
 toggle_button.clicked.connect(toggle_positive_nuclei_visibility) 
 layout.addWidget(toggle_button)
@@ -233,12 +211,15 @@ layout2 = QVBoxLayout()
 
 
 def load_images(base_path, filename, channel):
-    seg = skimage.io.imread(os.path.join(base_path, 'segmentation', filename))
-    measure = skimage.io.imread(os.path.join(base_path, 'preprocessed_images', 'channel_' + str(channel), filename))
+    
+    channel = channel+1
+    seg = skimage.io.imread(os.path.join(base_path, 'segmentation', 'seg_' + filename))
+    measure_filename = 'bgsub_' + filename[:-4] + '_ch' + str(channel) + '.tif'
+    measure = skimage.io.imread(os.path.join(base_path, 'preprocessed_images', 'channel_' + str(channel), measure_filename))
     return seg, measure
 
 def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel):
-
+    channel=channel+1
     stats = skimage.measure.regionprops_table(mask_im, intensity_image=intensity_im, properties=['label', 'mean_intensity', 'area'])    
     filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
     max_label = mask_im.max()
@@ -247,12 +228,12 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
         if area > size_threshold:
             lookup_array[label] = mean_intensity
     intensity_image = lookup_array[mask_im]
-    skimage.io.imsave(os.path.join(base_path, 'intensity_images', 'channel_' + str(channel), filename), intensity_image.astype(np.uint16), check_contrast=False)
+    skimage.io.imsave(os.path.join(base_path, 'intensity_images', 'channel_' + str(channel), 'int_' + filename[:-4] + '_ch' + str(channel)) + '.tif', intensity_image.astype(np.uint16), check_contrast=False)
     thresh = calculate_threshold(intensity_image, seg_method)
     thresh = thresh * scaling
     positive = np.zeros(intensity_image.shape, dtype=np.uint8)
     positive = np.where(intensity_image > thresh, 1, 0)
-    skimage.io.imsave(os.path.join(base_path, 'positive_cells', 'channel_' + str(channel), filename), positive, check_contrast=False)
+    skimage.io.imsave(os.path.join(base_path, 'positive_cells', 'channel_' + str(channel), 'pos_' + filename[:-4] + '_ch' + str(channel) + '.tif' ), positive.astype(np.uint8), check_contrast=False)
 
     rounded_intensity = [ '%.2f' % elem for elem in filtered_stats['mean_intensity'] ]
     
@@ -291,20 +272,25 @@ def on_apply_button_click():
     os.makedirs(os.path.join(folder_path, 'positive_cells'), exist_ok=True)
     os.makedirs(os.path.join(folder_path,'quantification'), exist_ok=True)
 
-    for i in range(0,3):
+    
+
+
+    for i in range(1,4):
         os.makedirs(os.path.join(folder_path,'intensity_images', 'channel_' + str(i)), exist_ok=True)
         os.makedirs(os.path.join(folder_path,'positive_cells', 'channel_' + str(i)), exist_ok=True)
 
     file_list = os.listdir(os.path.join(folder_path, 'segmentation'))
     
     for i, file in enumerate(file_list):
+        file = file[4:]
+
         print('============================================')
         print('processing file: ' + str(file))
         print('============================================')
 
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
-        if i >= 0:
+        if i >=0:
             #ch1
             print('processing channel 1')
             seg_im, measure_im = load_images(folder_path, file, 0)
@@ -339,77 +325,9 @@ def on_apply_button_click():
             df_summary['labels'] = summary_labels
             df_summary['data'] = summary_data
             df_summary.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + '_summary.csv'))
+
     print('processing complete')
-            # seg_folder = folder_path + os.path.sep + folder + os.path.sep + 'segmentation'
-            # ch1_folder = folder_path + os.path.sep + folder + os.path.sep + 'sum_projections' + os.path.sep + 'channel_0'
-            # ch2_folder = folder_path + os.path.sep + folder + os.path.sep + 'sum_projections' + os.path.sep + 'channel_1'
-            # ch1_ims = os.listdir(ch1_folder)
-            # ch2_ims = os.listdir(ch2_folder)
-            # seg_ims = os.listdir(seg_folder)
-            # ch1_im = skimage.io.imread(ch1_folder + os.path.sep + ch1_ims[0])
-            # ch2_im = skimage.io.imread(ch2_folder + os.path.sep + ch2_ims[0])
-            # masks = skimage.io.imread(seg_folder + os.path.sep + seg_ims[0])
-         
-
-    #         ###CH1
-    #         stats = skimage.measure.regionprops_table(masks, intensity_image=bg_sub_im_ch1, properties=['label', 'mean_intensity', 'area'])    
-    #         seg_method = dropdown_ch1.currentText()
-    #         filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
-    #         max_label = masks.max()
-    #         lookup_array = np.zeros(max_label + 1, dtype=np.float32)
-    #         for label, mean_intensity, area in zip(stats['label'], stats['mean_intensity'], stats['area']):
-    #                 if area > size_threshold:
-    #                     lookup_array[label] = mean_intensity
-    #         intensity_image = lookup_array[masks]
-    #         skimage.io.imsave((folder_path + os.path.sep + folder + os.path.sep + 'intensity_subtracted' + os.path.sep + folder + '_ch_0.tif'), intensity_image.astype(np.uint16))
-    #         thresh = calculate_threshold(intensity_image, seg_method)
-    #         positive = np.zeros_like(intensity_image)
-    #         positive = np.where(intensity_image > thresh, 1, 0)
-    #         skimage.io.imsave(folder_path + os.path.sep + folder + os.path.sep + 'positive_cells' + os.path.sep + folder + '_positive_ch0.tif', positive)
-
-    #         rounded_intensity = [ '%.2f' % elem for elem in filtered_stats['mean_intensity'] ]
-    #         df = pd.DataFrame()
-    #         df['label'] = filtered_stats['label']
-    #         df['area'] = filtered_stats['area']
-    #         df['intensity_ch1'] = rounded_intensity
-    #         for el in rounded_intensity:
-                
-    #                 if float(el) > thresh:
-    #                     temp = 1
-    #                 else:
-    #                     temp = 0
-    #         df['positive'] = temp
-            
-
-    #         ###CH2
-    #         stats = skimage.measure.regionprops_table(masks, intensity_image=bg_sub_im_ch2, properties=['label', 'mean_intensity', 'area'])    
-    #         seg_method = dropdown_ch2.currentText()
-
-    #         filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
-    #         max_label = masks.max()
-    #         lookup_array = np.zeros(max_label + 1, dtype=np.float32)
-    #         for label, mean_intensity, area in zip(stats['label'], stats['mean_intensity'], stats['area']):
-    #                 if area > size_threshold:
-    #                     lookup_array[label] = mean_intensity
-    #         intensity_image = lookup_array[masks]
-    #         skimage.io.imsave((folder_path + os.path.sep + folder + os.path.sep + 'intensity_subtracted' + os.path.sep + folder + '_ch_1.tif'), intensity_image.astype(np.uint16))
-    #         thresh = calculate_threshold(intensity_image, seg_method)
-    #         positive = np.zeros_like(intensity_image)
-    #         positive = np.where(intensity_image > thresh, 1, 0)
-    #         skimage.io.imsave(folder_path + os.path.sep + folder + os.path.sep + 'positive_cells' + os.path.sep + folder + '_positive_ch1.tif', positive)
-
-    #         rounded_intensity = [ '%.2f' % elem for elem in filtered_stats['mean_intensity'] ]
-    #         df = pd.DataFrame()
-    #         df['label'] = filtered_stats['label']
-    #         df['area'] = filtered_stats['area']
-    #         df['intensity_ch2'] = rounded_intensity
-    #         for el in rounded_intensity:
-    #                 if el > thresh:
-    #                     temp = 1
-    #                 else:
-    #                     temp = 0
-    #         df['positive'] = temp
-    # 
+      
 
 
 label_min_object_size = QLabel("Minimum Object Size")
