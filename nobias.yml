@@ -1,4 +1,4 @@
-name: nuclear-quantification
+name: nobias
 channels:
   - pytorch
   - conda-forge
