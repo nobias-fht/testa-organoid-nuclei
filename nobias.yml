@@ -246,8 +246,7 @@ dependencies:
       - tomli-w==1.1.0
       - toolz==1.0.0
       - torch==2.5.1
-      - torchaudio==2.5.1+cu118
-      - torchvision==0.20.1+cu118
+      - torchvision==0.20.1
       - tornado==6.4.2
       - tqdm==4.67.1
       - traitlets==5.14.3
@@ -266,4 +265,4 @@ dependencies:
       - zarr==2.15.0
       - zict==3.0.0
       - zipp==3.21.0
-prefix: /localscratch/miniforge3/envs/nuclear-quantification
+prefix: /localscratch/miniforge3/envs/nobias
