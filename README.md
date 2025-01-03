@@ -4,7 +4,7 @@ Pipeline for segmenting and quantifying nuclear marker expression in organoid im
 
 # Important Note
 If you have previously installed a  version of the pipeline, you must remove the old environment and install a new one, as some requirements have changed. Before proceeding to the next step, remove any existing environments by, for example
-`conda env remove --name nobias`
+`conda env remove --name nobias` and pressing 'y' when prompted.
 
 # Installing the pipeline (first time only)
 - Make a folder to store the pipeline files in (for example, a sibfolder in your home folder).
@@ -12,6 +12,7 @@ If you have previously installed a  version of the pipeline, you must remove the
 - From this terminal, initialize a git repository by typing `git init`.
 - Download the pipeline by typing `git pull https://github.com/nobias-fht/testa-organoid-nuclei`.
 - Create a conda environment by typing `conda env create -f nobias.yml`
+- Once this is finished, you will need to manually upgrade pytorch by typing `pip install --upgrade torch torchvision --index-url https://download.pytorch.org/whl/cu118`
 - Copy the `models` folder into the same folder as the scripts
 
 
