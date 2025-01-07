@@ -52,7 +52,7 @@ def on_load_button_click():
         base_dir = os.path.sep.join(list(file_path.split('/')[0:-3])) 
         seg_dir = base_dir + os.path.sep + 'segmentation'
 
-        seg = imread(seg_dir + os.path.sep + tail)
+        seg = imread(seg_dir + os.path.sep + 'seg_' + tail[6:-8] + '.tif')
         viewer.add_labels(seg, name='segmentation', blending='additive', visible=False)
         
         stats = skimage.measure.regionprops_table(seg, intensity_image=im, properties=['label', 'mean_intensity', 'area'])
@@ -66,7 +66,7 @@ def on_load_button_click():
         thresholded = np.zeros_like(intensity_image)
         viewer.add_image(thresholded, name='thresholded', blending='additive', visible=True, colormap='red')
         
-        dapi_im = skimage.io.imread(os.path.join(base_dir, 'raw_images', 'channel_dapi', tail))
+        dapi_im = skimage.io.imread(os.path.join(base_dir, 'raw_images', 'channel_dapi', tail[6:-8] + '_dapi.tif'))
         viewer.add_image(dapi_im, name='DAPI', blending='additive', visible=False)
 
     else:
