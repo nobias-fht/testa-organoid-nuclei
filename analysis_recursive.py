@@ -15,6 +15,7 @@ from aicsimageio import AICSImage, imread
 import easygui
 import glob
 import subprocess
+import dask.array as da
 import pyclesperanto as cle
 device = cle.select_device("AQ")
 print("Using GPU: ", device)
