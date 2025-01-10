@@ -19,6 +19,7 @@ import pyclesperanto as cle
 device = cle.select_device("AQ")
 print("Using GPU: ", device)
 
+
 print('imports finished')
 
 abspath = os.path.abspath(__file__)
@@ -49,7 +50,10 @@ def process_images(im, filename, raw_savefolder, bg_sub_folder, dapi_channel):
             skimage.io.imsave(raw_savefolder + os.path.sep + 'channel_' + str(channel+1) + os.path.sep + 'raw_' + filename[:-4] + '_ch' + str(channel+1) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
             print('finished saving raw')
 
-            sub_im = tophat_process(im[channel,:,:].astype(np.uint16))
+            tiles = da.from_array(im[channel,:,:], chunks=(512, 512))
+            tile_map = da.map_blocks(tophat_process, tiles)
+            sub_im = tile_map.compute()
+            #sub_im = tophat_process(im[channel,:,:].astype(np.uint16))
             print('finished subtraction')
 
             skimage.io.imsave(bg_sub_folder + os.path.sep + 'channel_' + str(channel+1) + os.path.sep + 'bgsub_' + filename[:-4] + '_ch'  + str(channel+1) + '.tif', sub_im, check_contrast=False)
