@@ -80,7 +80,7 @@ for channel in range(0, num_channels):
         channels_to_quantify.append(channel)
 
 for num, file in enumerate(file_paths):
-    if num < 2:
+    if num < 99999:
     
         filename = os.path.basename(file)
         #make output folders
