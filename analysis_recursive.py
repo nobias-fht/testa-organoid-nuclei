@@ -20,7 +20,8 @@ import pyclesperanto as cle
 device = cle.select_device("AQ")
 print("Using GPU: ", device)
 
-
+#place_profile = []
+#mem_profile = []
 print('imports finished')
 
 abspath = os.path.abspath(__file__)
@@ -33,6 +34,7 @@ def tophat_process(im):
     radius = 40
     result_image = cle.top_hat_sphere(test_image_gpu, result_image, radius_x=radius, radius_y=radius)
     bg_sub_im = cle.pull(result_image)
+    del result_image
     return bg_sub_im
 
 def load_image(file_path):
@@ -50,16 +52,16 @@ def process_images(im, filename, raw_savefolder, bg_sub_folder, dapi_channel):
         else:
             skimage.io.imsave(raw_savefolder + os.path.sep + 'channel_' + str(channel+1) + os.path.sep + 'raw_' + filename[:-4] + '_ch' + str(channel+1) + '.tif', im[channel,:,:].astype(np.uint16), check_contrast=False)
             print('finished saving raw')
-
-            tiles = da.from_array(im[channel,:,:], chunks=(512, 512))
-            tile_map = da.map_blocks(tophat_process, tiles)
-            sub_im = tile_map.compute()
-            #sub_im = tophat_process(im[channel,:,:].astype(np.uint16))
+           
+            #tiles = da.from_array(im[channel,:,:], chunks=(512, 512))
+            #tile_map = da.map_blocks(tophat_process, tiles)
+            #sub_im = tile_map.compute()
+            sub_im = tophat_process(im[channel,:,:].astype(np.uint16))
             print('finished subtraction')
 
             skimage.io.imsave(bg_sub_folder + os.path.sep + 'channel_' + str(channel+1) + os.path.sep + 'bgsub_' + filename[:-4] + '_ch'  + str(channel+1) + '.tif', sub_im, check_contrast=False)
             print('finished saving subtraction')
-
+      
 
 raw_folder = easygui.diropenbox('Select raw data folder')
 output_folder = easygui.diropenbox('Select folder to store results in')
@@ -78,6 +80,7 @@ channels_to_quantify = []
 for channel in range(0, num_channels):
     if channel != dapi_channel:
         channels_to_quantify.append(channel)
+
 
 for num, file in enumerate(file_paths):
     if num < 99999:
@@ -117,4 +120,5 @@ for num, file in enumerate(file_paths):
         masks, flows, styles  = model.eval(nuc_im, diameter=None, flow_threshold=None, channels=[0,0])
         skimage.io.imsave(masks_folder + os.path.sep + 'seg_' + filename[:-4]  + '.tif', masks, check_contrast=False)                      
         
+
 print('preprocessing pipeline finished')
