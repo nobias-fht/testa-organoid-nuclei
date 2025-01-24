@@ -290,7 +290,7 @@ def on_apply_button_click():
 
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
-        if i >=0:
+        if i < 3:
             #ch1
             print('processing channel 1')
             seg_im, measure_im = load_images(folder_path, file, 0)
@@ -326,6 +326,33 @@ def on_apply_button_click():
             df_summary['data'] = summary_data
             df_summary.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + '_summary.csv'))
 
+        print('creating summary csv file')
+        all_files = os.listdir(os.path.join(folder_path, 'quantification'))
+        files = []
+
+        for file in all_files:
+            if 'summary' in file:
+                files.append(file)
+        image_name = []
+        total_cells = []
+        ch1_positive = []
+        ch2_positive = []
+        ch3_positive = []
+
+        for file in files:
+            image_name.append(file)
+            df = pd.read_csv(os.path.join(folder_path, 'quantification', file))
+            total_cells.append(int(df[df['labels'].str.contains("total_cells")]['data'].item()))
+            ch1_positive.append(int(df[df['labels'].str.contains("ch1_positive")]['data'].item()))
+            ch2_positive.append(int(df[df['labels'].str.contains("ch2_positive")]['data'].item()))
+            ch3_positive.append(int(df[df['labels'].str.contains("ch3_positive")]['data'].item()))
+        new_df = pd.DataFrame()
+        new_df['file_name'] = image_name
+        new_df['total_cells'] = total_cells
+        new_df['ch1_positive'] = ch1_positive
+        new_df['ch2_positive'] = ch2_positive
+        new_df['ch3_positive'] = ch3_positive
+        new_df.to_csv(os.path.join(folder_path, 'summary.csv'))
     print('processing complete')
       
 
