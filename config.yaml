@@ -1,0 +1,6 @@
+
+raw_folder: '/facility/imganfacusers/Testa/Claudio/20240508singlescene'
+output_folder: '/facility/imganfacusers/Testa/Claudio/ss_hpc'
+dapi_channel: 3
+cellpose_model_nd2: 'models/Claudio_nd2'
+cellpose_model_czi: 'models/Claudio_czi'
