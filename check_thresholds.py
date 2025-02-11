@@ -68,7 +68,7 @@ def on_load_button_click():
         
         dapi_im = skimage.io.imread(os.path.join(base_dir, 'raw_images', 'channel_dapi', tail[6:-8] + '_dapi.tif'))
         viewer.add_image(dapi_im, name='DAPI', blending='additive', visible=False)
-        text_box_image_name.setText(tail[6:-8])
+        text_box_image_name.setText(tail[6:-4])
 
     else:
         print("No file was selected.")
