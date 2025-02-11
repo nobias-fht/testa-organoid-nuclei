@@ -68,6 +68,7 @@ def on_load_button_click():
         
         dapi_im = skimage.io.imread(os.path.join(base_dir, 'raw_images', 'channel_dapi', tail[6:-8] + '_dapi.tif'))
         viewer.add_image(dapi_im, name='DAPI', blending='additive', visible=False)
+        text_box_image_name.setText(tail[6:-8])
 
     else:
         print("No file was selected.")
@@ -165,6 +166,13 @@ button = QPushButton("Load an Image")
 button.clicked.connect(on_load_button_click)
 layout.addWidget(button)
 
+
+text_box_image_name = QLineEdit()
+text_box_image_name.setReadOnly(True)  
+layout.addWidget(text_box_image_name)
+
+
+
 dropdown = QComboBox()
 dropdown.addItem("otsu")
 dropdown.addItem("triangle")
@@ -212,6 +220,7 @@ layout2 = QVBoxLayout()
 
 def load_images(base_path, filename, channel):
     
+
     channel = channel+1
     seg = skimage.io.imread(os.path.join(base_path, 'segmentation', 'seg_' + filename))
     measure_filename = 'bgsub_' + filename[:-4] + '_ch' + str(channel) + '.tif'
