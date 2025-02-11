@@ -73,6 +73,8 @@ def on_load_button_click():
     else:
         print("No file was selected.")
  
+
+
 def on_load_button_segmentation_click():
     print("Load Segmentation Button was clicked!")
     file_path = easygui.fileopenbox(title="Select Segmentation File")
@@ -299,7 +301,7 @@ def on_apply_button_click():
 
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
-        if i < 3:
+        if i < 9999:
             #ch1
             print('processing channel 1')
             seg_im, measure_im = load_images(folder_path, file, 0)
