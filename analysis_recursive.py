@@ -26,9 +26,6 @@ print("Using GPU: ", device)
 
 print('imports finished')
 
-
-
-
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
 os.chdir(dname)
