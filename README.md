@@ -18,16 +18,32 @@ If you have previously installed a  version of the pipeline, you must remove the
 
 # Running the pipeline 
 
-## Step 1: preprocessing step
+## Step 1: preprocessing step 
+
+### On HPC (recommended)
+
+- Editing the `config.yaml` file:
+  - modify the location of the `raw_folder` (where in the input data is kept), the `output_folder` (where the output data should be stored) and the `dapi_channel` (if necessary) fields.
+  - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
+- Edit the `script.sbatch` file.
+  - Update the `#SBATCH --time=6:00:00` line, changing the limit. If the time limit is reached before the processing is done, the process will shut down and the script will not complete. You can estimate the amount of time needed by running a small number of files. An estimate of 10 minutes per file, with an apporpriate buffer of 20%, should be a reasonable place to start
+  -  In the last line, update the path of `python /facility/imganfac/neurogenomics/Testa/Claudio/scripts/analysis_recursive.py` to point to the path of the script file.
+ 
+- Note in all of the above, the paths given should be in linux style (as in the examples). For example, a folder in your home directory would be at `/home/user.name/folder_name`, in a group share it would be `/group/groupname/folder/`
+- Open a terminal and connect to the HPC by typing `ssh user.name@hpclogin.fht.org` and entering your password when prompted (replace `user.name` with your fht login name.
+- Once there, navigate to the folder that contains the script
+- Submit the job by typing `sbatch script.sbatch`
+- You can check on the status of the job by typing `squeue --user=user.name` (replacing user.name with your HT username)
+- You should recieve an email when the job is complete, or when it fails for any reason.
+  
+
+### (on VDI, not recommended)
+- Editing the `config.yaml` file:
+  - modify the location of the `raw_folder` (where in the input data is kept), the `output_folder` (where the output data should be stored) and the `dapi_channel` (if necessary) fields.
+  - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
 - In a terminal, navigate to the folder you placed the pipeline in. Before running, ensure that you have the latest version of the script by running the terminal command `git pull` from the folder you have the scripts installed in.
 - Activate the enviromment by typing `conda activate nobias`. the prompt on the left of the terminal should change from (base) to (nobias).
 - Run the pipeline by typing `python analysis_recursive.py`
-- When prompted, select:
-
-1. The input folder where the raw data to be quantified is
-2. The output folder to store the results
-3. The channel where DAPI is in the stack (Note that this is `zero-indexed`, meaning that if DAPI is in the first channnel you would put '0' for this, if it is ins the second channel '1', and so on.
-
 
 ## Step 2: Quantifying the nuclear intensity 
 
