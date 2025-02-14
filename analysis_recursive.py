@@ -22,9 +22,18 @@ from pathlib import Path
 device = cle.select_device("V100")
 print("Using GPU: ", device)
 
+
+
+#TODO: update to work also on tif files (same image type as czi, just format change)
+
+
+
 #place_profile = []
 #mem_profile = []
 print('imports finished')
+
+
+
 
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -82,7 +91,7 @@ with open(CONFIG_NAME, "r") as f:
 raw_folder = config['raw_folder']
 output_folder = config['output_folder']
 dapi_channel = config['dapi_channel']
-
+cellpose_model = config['cellpose_model_czi']
 print(raw_folder)
 print(output_folder)
 print(dapi_channel)
@@ -90,7 +99,7 @@ print(dapi_channel)
 
 
 
-cellpose_model = '/facility/imganfac/neurogenomics/Testa/Claudio/scripts/models/Claudio_czi'
+#cellpose_model = '/facility/imganfac/neurogenomics/Testa/Claudio/scripts/models/Claudio_czi'
 
 file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + 'czi', recursive=True)
 
