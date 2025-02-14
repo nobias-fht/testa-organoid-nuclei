@@ -21,7 +21,7 @@ If you have previously installed a  version of the pipeline, you must remove the
 ## Step 1: preprocessing step 
 
 ### On HPC (recommended)
-
+- In a terminal, navigate to the folder you placed the pipeline in. Before running, ensure that you have the latest version of the script by running the terminal command `git pull` from the folder you have the scripts installed in.
 - Editing the `config.yaml` file:
   - modify the location of the `raw_folder` (where in the input data is kept), the `output_folder` (where the output data should be stored) and the `dapi_channel` (if necessary) fields.
   - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
@@ -38,11 +38,11 @@ If you have previously installed a  version of the pipeline, you must remove the
   
 
 ### (on VDI, not recommended)
+- In a terminal, navigate to the folder you placed the pipeline in. Before running, ensure that you have the latest version of the script by running the terminal command `git pull` from the folder you have the scripts installed in.
+- Activate the enviromment by typing `conda activate nobias`. the prompt on the left of the terminal should change from (base) to (nobias).
 - Editing the `config.yaml` file:
   - modify the location of the `raw_folder` (where in the input data is kept), the `output_folder` (where the output data should be stored) and the `dapi_channel` (if necessary) fields.
   - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
-- In a terminal, navigate to the folder you placed the pipeline in. Before running, ensure that you have the latest version of the script by running the terminal command `git pull` from the folder you have the scripts installed in.
-- Activate the enviromment by typing `conda activate nobias`. the prompt on the left of the terminal should change from (base) to (nobias).
 - Run the pipeline by typing `python analysis_recursive.py`
 
 ## Step 2: Quantifying the nuclear intensity 
