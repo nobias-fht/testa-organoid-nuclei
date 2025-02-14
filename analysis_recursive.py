@@ -96,9 +96,6 @@ print(raw_folder)
 print(output_folder)
 print(dapi_channel)
 
-
-
-
 #cellpose_model = '/facility/imganfac/neurogenomics/Testa/Claudio/scripts/models/Claudio_czi'
 
 file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + 'czi', recursive=True)
