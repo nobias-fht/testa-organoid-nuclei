@@ -22,14 +22,8 @@ from pathlib import Path
 device = cle.select_device("V100")
 print("Using GPU: ", device)
 
-
-
 #TODO: update to work also on tif files (same image type as czi, just format change)
 
-
-
-#place_profile = []
-#mem_profile = []
 print('imports finished')
 
 
