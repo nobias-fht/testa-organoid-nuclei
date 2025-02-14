@@ -27,7 +27,7 @@ If you have previously installed a  version of the pipeline, you must remove the
   - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
 - Edit the `script.sbatch` file.
   - Update the `#SBATCH --time=6:00:00` line, changing the limit. If the time limit is reached before the processing is done, the process will shut down and the script will not complete. You can estimate the amount of time needed by running a small number of files. An estimate of 10 minutes per file, with an apporpriate buffer of 20%, should be a reasonable place to start
-  -  In the last line, update the path of `python /facility/imganfac/neurogenomics/Testa/Claudio/scripts/analysis_recursive.py` to point to the path of the script file.
+  -  In the last line, update the path of `python /facility/imganfac/neurogenomics/Testa/Claudio/scripts/analysis_recursive.py` to point to the path of the script file (for example `/home/user.name/script_folder/`).
  
 - Note in all of the above, the paths given should be in linux style (as in the examples). For example, a folder in your home directory would be at `/home/user.name/folder_name`, in a group share it would be `/group/groupname/folder/`
 - Open a terminal and connect to the HPC by typing `ssh user.name@hpclogin.fht.org` and entering your password when prompted (replace `user.name` with your fht login name.
