@@ -231,6 +231,7 @@ def load_images(base_path, filename, channel):
 
 def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel):
     channel=channel+1
+    sum_intensity = 0
     stats = skimage.measure.regionprops_table(mask_im, intensity_image=intensity_im, properties=['label', 'mean_intensity', 'area'])    
     filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
     max_label = mask_im.max()
@@ -282,6 +283,7 @@ def on_apply_button_click():
     os.makedirs(os.path.join(folder_path,'intensity_images'), exist_ok=True)
     os.makedirs(os.path.join(folder_path, 'positive_cells'), exist_ok=True)
     os.makedirs(os.path.join(folder_path,'quantification'), exist_ok=True)
+    os.makedirs(os.path.join(folder_path,'organoid_masks'), exist_ok=True)
 
     
 
@@ -302,21 +304,41 @@ def on_apply_button_click():
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
         if i < 9999:
+
+            #get the mask for dapi channel
+            dapi_im = skimage.io.imread(os.path.join(folder_path, 'raw_images', 'channel_dapi', file[:-4] + '_dapi.tif'))
+            dapi_downscaled = skimage.transform.rescale(dapi_im, 0.1, anti_aliasing=True)
+            dapi_downscale_blur = skimage.filters.gaussian(dapi_downscaled, 1)
+            thresh = skimage.filters.threshold_triangle(dapi_downscale_blur)
+            binary = dapi_downscale_blur > thresh  
+            mask_upscaled = skimage.transform.resize(binary, dapi_im.shape, anti_aliasing=False)
+            skimage.io.imsave(os.path.join(folder_path, 'organoid_masks', 'mask_' + file), mask_upscaled.astype(np.uint8), check_contrast=False)
+
+
             #ch1
             print('processing channel 1')
             seg_im, measure_im = load_images(folder_path, file, 0)
             rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 0)
-        
+            measure_im_64 = measure_im.astype(np.int64)
+            masked_intensity_ch1 = np.sum(measure_im_64[mask_upscaled])
+            nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
+
             #ch2
             print('processing channel 2')
             seg_im, measure_im = load_images(folder_path, file, 1)
             rounded_intensity_ch2, classification_ch2, labels, thresh_ch2 = threshold_channel(ch2_seg_method, seg_im, measure_im, ch2_scaling, size_threshold, folder_path, file, 1)
-        
+            measure_im_64 = measure_im.astype(np.int64)
+            masked_intensity_ch2 = np.sum(measure_im_64[mask_upscaled])
+            nuclear_intensity_ch2 = np.sum(measure_im_64[seg_im > 0])
+
             #ch3
             print('processing channel 3')
             seg_im, measure_im = load_images(folder_path, file, 2)
             rounded_intensity_ch3, classification_ch3, labels, thresh_ch3 = threshold_channel(ch3_seg_method, seg_im, measure_im, ch3_scaling, size_threshold, folder_path, file, 2)
-        
+            measure_im_64 = measure_im.astype(np.int64)
+            masked_intensity_ch3 = np.sum(measure_im_64[mask_upscaled])
+            nuclear_intensity_ch3 = np.sum(measure_im_64[seg_im > 0])
+
             df['labels'] = labels
             df['ch1_intensities'] = rounded_intensity_ch1
             df['ch2_intensities'] = rounded_intensity_ch2
@@ -324,14 +346,16 @@ def on_apply_button_click():
             df['ch1_positive'] = classification_ch1
             df['ch2_positive'] = classification_ch2
             df['ch3_positive'] = classification_ch3
-            
+
             df.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + '.csv'))
 
+            num_cells = np.amax(df['labels'])
+
             summary_labels = ['filename', 'ch1_threshold_method', 'ch2_threshold_method', 'ch3_threshold_method', 'ch1_threshold_scaling', 'ch2_threshold_scaling', 'ch3_threshold_scaling', 
-                              'ch1_threshold', 'ch2_threshold', 'ch3_threshold', 'ch1_positive', 'ch2_positive', 'ch3_positive', 'total_cells']
+                              'ch1_threshold', 'ch2_threshold', 'ch3_threshold', 'ch1_positive', 'ch2_positive', 'ch3_positive', 'total_cells', 'ch1_sum_total', 'ch2_sum_total', 'ch3_sum_total', 'ch1_sum_nuclei', 'ch2_sum_nuclei', 'ch3_sum_nuclei', 'mask_area', 'nuclear_area']
 
             summary_data = [file, ch1_seg_method, ch2_seg_method, ch3_seg_method, str(ch1_scaling), str(ch2_scaling), str(ch3_scaling), 
-                            str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1))]
+                            str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1)), masked_intensity_ch1, masked_intensity_ch2, masked_intensity_ch3, nuclear_intensity_ch1, nuclear_intensity_ch2, nuclear_intensity_ch3, np.sum(mask_upscaled), np.sum(seg_im > 0)]
 
             df_summary['labels'] = summary_labels
             df_summary['data'] = summary_data
@@ -349,7 +373,15 @@ def on_apply_button_click():
         ch1_positive = []
         ch2_positive = []
         ch3_positive = []
-
+        ch1_intensity_sum = []
+        ch2_intensity_sum = []
+        ch3_intensity_sum = []
+        ch1_intensity_nuclear = []
+        ch2_intensity_nuclear = []
+        ch3_intensity_nuclear = []
+        mask_area = []
+        nuclear_area = []
+     
         for file in files:
             image_name.append(file)
             df = pd.read_csv(os.path.join(folder_path, 'quantification', file))
@@ -357,12 +389,32 @@ def on_apply_button_click():
             ch1_positive.append(int(df[df['labels'].str.contains("ch1_positive")]['data'].item()))
             ch2_positive.append(int(df[df['labels'].str.contains("ch2_positive")]['data'].item()))
             ch3_positive.append(int(df[df['labels'].str.contains("ch3_positive")]['data'].item()))
+            ch1_intensity_sum.append(int(df[df['labels'].str.contains("ch1_sum_total")]['data'].item()))
+            ch2_intensity_sum.append(int(df[df['labels'].str.contains("ch2_sum_total")]['data'].item()))
+            ch3_intensity_sum.append(int(df[df['labels'].str.contains("ch3_sum_total")]['data'].item()))
+            ch1_intensity_nuclear.append(int(df[df['labels'].str.contains("ch1_sum_nuclei")]['data'].item()))
+            ch2_intensity_nuclear.append(int(df[df['labels'].str.contains("ch2_sum_nuclei")]['data'].item()))
+            ch3_intensity_nuclear.append(int(df[df['labels'].str.contains("ch3_sum_nuclei")]['data'].item()))
+            mask_area.append(int(df[df['labels'].str.contains("mask_area")]['data'].item()))
+            nuclear_area.append(int(df[df['labels'].str.contains("nuclear_area")]['data'].item()))
+
         new_df = pd.DataFrame()
         new_df['file_name'] = image_name
         new_df['total_cells'] = total_cells
         new_df['ch1_positive'] = ch1_positive
         new_df['ch2_positive'] = ch2_positive
         new_df['ch3_positive'] = ch3_positive
+        new_df['ch1_intensity_sum'] = ch1_intensity_sum
+        new_df['ch2_intensity_sum'] = ch2_intensity_sum
+        new_df['ch3_intensity_sum'] = ch3_intensity_sum
+        new_df['ch1_intensity_nuclear'] = ch1_intensity_nuclear
+        new_df['ch2_intensity_nuclear'] = ch2_intensity_nuclear
+        new_df['ch3_intensity_nuclear'] = ch3_intensity_nuclear
+        new_df['mask_area'] = mask_area
+        new_df['nuclear_area'] = nuclear_area
+        #here, add total intensity, and sum intensity for each channel
+
+
         new_df.to_csv(os.path.join(folder_path, 'summary.csv'))
     print('processing complete')
       
