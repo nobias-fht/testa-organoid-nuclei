@@ -11,6 +11,7 @@ import pandas as pd
 
 size_threshold = 100
 
+global last_path
 global global_multiplier
 global seg_method
 global ch_mean
@@ -21,6 +22,9 @@ global_multiplier = 0
 ch_mean = 0
 ch_sd = 0
 df = pd.DataFrame()
+
+
+last_path = os.getcwd()
 
 seg_methos = 'otsu'
 
@@ -37,10 +41,13 @@ def toggle_positive_nuclei_visibility():
         layer.visible = not layer.visible  
 
 def on_load_button_click():
+    global last_path
     print("Load Button was clicked!")
-    file_path = easygui.fileopenbox(title="Select Processed Image File")
+    file_path = easygui.fileopenbox(title="Select Processed Image File", default=last_path)
     if file_path is not None:
         
+        head, tail = os.path.split(file_path)
+        last_path = head        
         viewer.layers.clear()
         
         im = imread(file_path)
