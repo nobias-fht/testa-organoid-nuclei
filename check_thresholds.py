@@ -7,6 +7,8 @@ from skimage.io import imread
 import os
 import skimage
 import pandas as pd
+import time
+
 
 
 size_threshold = 100
@@ -88,6 +90,8 @@ def on_load_button_segmentation_click():
     if file_path is not None:
         filename = os.path.basename(file_path)
         masks = imread(file_path)
+
+
 
         measure_im = viewer.layers['raw_image'].data
         stats = skimage.measure.regionprops_table(masks, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
@@ -229,17 +233,20 @@ layout2 = QVBoxLayout()
 
 def load_images(base_path, filename, channel):
     
-
-    channel = channel+1
     seg = skimage.io.imread(os.path.join(base_path, 'segmentation', 'seg_' + filename))
     measure_filename = 'bgsub_' + filename[:-4] + '_ch' + str(channel) + '.tif'
     measure = skimage.io.imread(os.path.join(base_path, 'preprocessed_images', 'channel_' + str(channel), measure_filename))
     return seg, measure
 
-def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel):
-    channel=channel+1
-    sum_intensity = 0
+def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel, organoid_mask, min_val):
+    
+
+
+
+    mask_im = np.multiply(mask_im, organoid_mask)
+
     stats = skimage.measure.regionprops_table(mask_im, intensity_image=intensity_im, properties=['label', 'mean_intensity', 'area'])    
+
     filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
     max_label = mask_im.max()
     lookup_array = np.zeros(max_label + 1, dtype=np.float32)
@@ -247,6 +254,8 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
         if area > size_threshold:
             lookup_array[label] = mean_intensity
     intensity_image = lookup_array[mask_im]
+    
+
     skimage.io.imsave(os.path.join(base_path, 'intensity_images', 'channel_' + str(channel), 'int_' + filename[:-4] + '_ch' + str(channel)) + '.tif', intensity_image.astype(np.uint16), check_contrast=False)
     thresh = calculate_threshold(intensity_image, seg_method)
     thresh = thresh * scaling
@@ -259,7 +268,7 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
     classification = []
 
     for intensity in rounded_intensity:
-        if float(intensity) > thresh:
+        if float(intensity) > max(thresh, min_val):
             classification.append(1)
         else:
             classification.append(0)
@@ -271,6 +280,7 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
 def on_apply_button_click():
 
 
+
     folder_path = easygui.diropenbox(title="Select Processed Image Folder")
     print(folder_path)
     ch1_seg_method = dropdown_ch1.currentText()
@@ -279,12 +289,17 @@ def on_apply_button_click():
     ch1_scaling = float(textbox_scaling_ch1.text())
     ch2_scaling = float(textbox_scaling_ch2.text())
     ch3_scaling = float(textbox_scaling_ch3.text())
+    ch1_min = float(textbox_min_ch1.text())
+    ch2_min = float(textbox_min_ch2.text())
+    ch3_min = float(textbox_min_ch3.text())
+
 
     size_threshold = float(textbox_minsize.text())
     
-    print('ch1: ' + ch1_seg_method + ' with scaling of ' + str(ch1_scaling))
-    print('ch2: ' + ch2_seg_method + ' with scaling of ' + str(ch2_scaling))
-    print('ch3: ' + ch3_seg_method + ' with scaling of ' + str(ch3_scaling))
+    print('ch1: ' + ch1_seg_method + ' with scaling of ' + str(ch1_scaling) + ' and min of ' + str(ch1_min))
+    print('ch2: ' + ch2_seg_method + ' with scaling of ' + str(ch2_scaling) + ' and min of ' + str(ch2_min))
+    print('ch3: ' + ch3_seg_method + ' with scaling of ' + str(ch3_scaling) + ' and min of ' + str(ch3_min))
+  
     
     #make folders to store results in
     os.makedirs(os.path.join(folder_path,'intensity_images'), exist_ok=True)
@@ -311,39 +326,30 @@ def on_apply_button_click():
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
         if i < 9999:
-
-            #get the mask for dapi channel
-            dapi_im = skimage.io.imread(os.path.join(folder_path, 'raw_images', 'channel_dapi', file[:-4] + '_dapi.tif'))
-            dapi_downscaled = skimage.transform.rescale(dapi_im, 0.1, anti_aliasing=True)
-            dapi_downscale_blur = skimage.filters.gaussian(dapi_downscaled, 1)
-            thresh = skimage.filters.threshold_triangle(dapi_downscale_blur)
-            binary = dapi_downscale_blur > thresh  
-            mask_upscaled = skimage.transform.resize(binary, dapi_im.shape, anti_aliasing=False)
-            skimage.io.imsave(os.path.join(folder_path, 'organoid_masks', 'mask_' + file), mask_upscaled.astype(np.uint8), check_contrast=False)
-
-
+            
             #ch1
             print('processing channel 1')
-            seg_im, measure_im = load_images(folder_path, file, 0)
-            rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 0)
+            seg_im, measure_im = load_images(folder_path, file, 1)
+            organoid_mask = skimage.io.imread(os.path.join(folder_path, 'organoid_masks', 'organoid_mask_' + file[:-4]  + '.tif'))
+            rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
             measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch1 = np.sum(measure_im_64[mask_upscaled])
+            masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
 
             #ch2
             print('processing channel 2')
-            seg_im, measure_im = load_images(folder_path, file, 1)
-            rounded_intensity_ch2, classification_ch2, labels, thresh_ch2 = threshold_channel(ch2_seg_method, seg_im, measure_im, ch2_scaling, size_threshold, folder_path, file, 1)
+            seg_im, measure_im = load_images(folder_path, file, 2)
+            rounded_intensity_ch2, classification_ch2, labels, thresh_ch2 = threshold_channel(ch2_seg_method, seg_im, measure_im, ch2_scaling, size_threshold, folder_path, file, 2, organoid_mask, ch2_min)
             measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch2 = np.sum(measure_im_64[mask_upscaled])
+            masked_intensity_ch2 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch2 = np.sum(measure_im_64[seg_im > 0])
 
             #ch3
             print('processing channel 3')
-            seg_im, measure_im = load_images(folder_path, file, 2)
-            rounded_intensity_ch3, classification_ch3, labels, thresh_ch3 = threshold_channel(ch3_seg_method, seg_im, measure_im, ch3_scaling, size_threshold, folder_path, file, 2)
+            seg_im, measure_im = load_images(folder_path, file, 3)
+            rounded_intensity_ch3, classification_ch3, labels, thresh_ch3 = threshold_channel(ch3_seg_method, seg_im, measure_im, ch3_scaling, size_threshold, folder_path, file, 3, organoid_mask, ch3_min) 
             measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch3 = np.sum(measure_im_64[mask_upscaled])
+            masked_intensity_ch3 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch3 = np.sum(measure_im_64[seg_im > 0])
 
             df['labels'] = labels
@@ -362,7 +368,7 @@ def on_apply_button_click():
                               'ch1_threshold', 'ch2_threshold', 'ch3_threshold', 'ch1_positive', 'ch2_positive', 'ch3_positive', 'total_cells', 'ch1_sum_total', 'ch2_sum_total', 'ch3_sum_total', 'ch1_sum_nuclei', 'ch2_sum_nuclei', 'ch3_sum_nuclei', 'mask_area', 'nuclear_area']
 
             summary_data = [file, ch1_seg_method, ch2_seg_method, ch3_seg_method, str(ch1_scaling), str(ch2_scaling), str(ch3_scaling), 
-                            str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1)), masked_intensity_ch1, masked_intensity_ch2, masked_intensity_ch3, nuclear_intensity_ch1, nuclear_intensity_ch2, nuclear_intensity_ch3, np.sum(mask_upscaled), np.sum(seg_im > 0)]
+                            str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1)), masked_intensity_ch1, masked_intensity_ch2, masked_intensity_ch3, nuclear_intensity_ch1, nuclear_intensity_ch2, nuclear_intensity_ch3, np.sum(organoid_mask), np.sum(seg_im > 0)]
 
             df_summary['labels'] = summary_labels
             df_summary['data'] = summary_data
@@ -434,6 +440,9 @@ textbox_minsize.setReadOnly(False)
 textbox_minsize.setText('100')
 layout2.addWidget(textbox_minsize)
 
+label_ch1_method = QLabel("Channel 1 method")
+layout2.addWidget(label_ch1_method)  
+
 dropdown_ch1 = QComboBox()
 dropdown_ch1.addItem("otsu")
 dropdown_ch1.addItem("triangle")
@@ -451,8 +460,18 @@ layout2.addWidget(label_ch1_scaling)
 textbox_scaling_ch1 = QLineEdit()
 textbox_scaling_ch1.setReadOnly(False)  
 textbox_scaling_ch1.setText('1')
-
 layout2.addWidget(textbox_scaling_ch1)
+
+label_ch1_min = QLabel("Channel 1 minimum value")
+layout2.addWidget(label_ch1_min)  
+
+textbox_min_ch1 = QLineEdit()
+textbox_min_ch1.setReadOnly(False)  
+textbox_min_ch1.setText('0')
+layout2.addWidget(textbox_min_ch1)
+
+label_ch2_method = QLabel("Channel 2 method")
+layout2.addWidget(label_ch2_method)  
 
 dropdown_ch2 = QComboBox()
 dropdown_ch2.addItem("otsu")
@@ -475,6 +494,17 @@ textbox_scaling_ch2.setText('1')
 
 layout2.addWidget(textbox_scaling_ch2)
 
+label_ch2_min = QLabel("Channel 2 minimum value")
+layout2.addWidget(label_ch2_min)  
+
+textbox_min_ch2 = QLineEdit()
+textbox_min_ch2.setReadOnly(False)  
+textbox_min_ch2.setText('0')
+layout2.addWidget(textbox_min_ch2)
+
+label_ch3_method = QLabel("Channel 3 method")
+layout2.addWidget(label_ch3_method)  
+
 dropdown_ch3 = QComboBox()
 dropdown_ch3.addItem("otsu")
 dropdown_ch3.addItem("triangle")
@@ -494,6 +524,15 @@ textbox_scaling_ch3.setReadOnly(False)
 textbox_scaling_ch3.setText('1')
 
 layout2.addWidget(textbox_scaling_ch3)
+
+
+label_ch3_min = QLabel("Channel 3 minimum value")
+layout2.addWidget(label_ch3_min)  
+
+textbox_min_ch3 = QLineEdit()
+textbox_min_ch3.setReadOnly(False)  
+textbox_min_ch3.setText('0')
+layout2.addWidget(textbox_min_ch3)
 
 apply_button = QPushButton("Apply Threshold to Folder")
 apply_button.clicked.connect(on_apply_button_click)
