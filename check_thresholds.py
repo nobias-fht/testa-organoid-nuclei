@@ -25,6 +25,23 @@ ch_mean = 0
 ch_sd = 0
 df = pd.DataFrame()
 
+basic_properties = [
+        # Basic shape properties
+        'area', 'bbox', 'bbox_area', 'centroid', 'convex_area', 
+        'eccentricity', 'equivalent_diameter', 'euler_number', 
+        'extent', 'feret_diameter_max', 'filled_area', 'label', 
+        'major_axis_length', 'minor_axis_length', 'orientation', 
+        'perimeter', 'perimeter_crofton', 'solidity',
+        
+        # Moment properties
+        'moments', 'moments_central', 'moments_hu', 'moments_normalized',
+    ]
+
+intensity_properties = [
+        'max_intensity', 'mean_intensity', 'min_intensity',
+        'weighted_centroid', 'weighted_moments', 'weighted_moments_central',
+        'weighted_moments_hu', 'weighted_moments_normalized'
+    ]
 
 last_path = os.getcwd()
 
@@ -41,6 +58,8 @@ def toggle_positive_nuclei_visibility():
     layer = next((layer for layer in viewer.layers if layer.name == "thresholded"), None)
     if layer:
         layer.visible = not layer.visible  
+
+
 
 def on_load_button_click():
     global last_path
@@ -98,9 +117,6 @@ def on_load_button_segmentation_click():
         filename = os.path.basename(file_path)
         masks = imread(file_path)
 
-
-
-
         measure_im = viewer.layers['raw_image'].data
         stats = skimage.measure.regionprops_table(masks, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
         filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
@@ -121,6 +137,7 @@ def on_load_button_segmentation_click():
         print("No file was selected.")
 
 def calculate_threshold(intensity_im, seg_method):  
+
     dist = np.unique(intensity_im)
     if len(dist) % 2 != 0:
         temp = dist[:-1]
@@ -248,12 +265,10 @@ def load_images(base_path, filename, channel):
 
 def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel, organoid_mask, min_val):
     
-
-
-
     mask_im = np.multiply(mask_im, organoid_mask)
 
     stats = skimage.measure.regionprops_table(mask_im, intensity_image=intensity_im, properties=['label', 'mean_intensity', 'area'])    
+
 
     filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
     max_label = mask_im.max()
@@ -286,8 +301,6 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
 
 
 def on_apply_button_click():
-
-
 
     folder_path = easygui.diropenbox(title="Select Processed Image Folder")
     print(folder_path)
@@ -344,6 +357,14 @@ def on_apply_button_click():
             masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
 
+            #get the non-intensity props
+            stats = skimage.measure.regionprops_table(seg_im, intensity_image=None, properties=basic_properties)    
+            basic_props_df = pd.DataFrame(stats)
+            basic_props_df.to_csv(os.path.join(folder_path, 'quantification', 'morph_stats.csv'))
+            #get the intensity props
+            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            int_props_df = pd.DataFrame(stats)
+            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch1_intensity_stats.csv'))
             #ch2
             print('processing channel 2')
             seg_im, measure_im = load_images(folder_path, file, 2)
@@ -351,7 +372,9 @@ def on_apply_button_click():
             measure_im_64 = measure_im.astype(np.int64)
             masked_intensity_ch2 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch2 = np.sum(measure_im_64[seg_im > 0])
-
+            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            int_props_df = pd.DataFrame(stats)
+            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch2_intensity_stats.csv'))
             #ch3
             print('processing channel 3')
             seg_im, measure_im = load_images(folder_path, file, 3)
@@ -359,6 +382,9 @@ def on_apply_button_click():
             measure_im_64 = measure_im.astype(np.int64)
             masked_intensity_ch3 = np.sum(measure_im_64[organoid_mask > 0])
             nuclear_intensity_ch3 = np.sum(measure_im_64[seg_im > 0])
+            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            int_props_df = pd.DataFrame(stats)
+            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch3_intensity_stats.csv'))
 
             df['labels'] = labels
             df['ch1_intensities'] = rounded_intensity_ch1
