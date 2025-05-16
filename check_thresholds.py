@@ -47,7 +47,7 @@ def on_load_button_click():
     print("Load Button was clicked!")
     file_path = easygui.fileopenbox(title="Select Processed Image File", default=last_path)
     if file_path is not None:
-        
+
         head, tail = os.path.split(file_path)
         last_path = head        
         viewer.layers.clear()
@@ -60,8 +60,15 @@ def on_load_button_click():
         head, tail = os.path.split(file_path)
         base_dir = os.path.sep.join(list(file_path.split('/')[0:-3])) 
         seg_dir = base_dir + os.path.sep + 'segmentation'
+        organoid_mask_dir = base_dir + os.path.sep + 'organoid_masks'
+
+        organoid_mask = skimage.io.imread(os.path.join(organoid_mask_dir, 'organoid_mask_' + tail[6:-8]  + '.tif'))
+
 
         seg = imread(seg_dir + os.path.sep + 'seg_' + tail[6:-8] + '.tif')
+
+        seg = seg * organoid_mask
+
         viewer.add_labels(seg, name='segmentation', blending='additive', visible=False)
         
         stats = skimage.measure.regionprops_table(seg, intensity_image=im, properties=['label', 'mean_intensity', 'area'])
@@ -90,6 +97,7 @@ def on_load_button_segmentation_click():
     if file_path is not None:
         filename = os.path.basename(file_path)
         masks = imread(file_path)
+
 
 
 
@@ -148,7 +156,7 @@ def on_threshold_method_button_click():
     viewer.layers['thresholded'].data = np.where(intensity_layer > 0, 0, 0)
     seg_method = dropdown.currentText()
     multiplier = float(text_box_multuplier.text())
-    print('Segmenting with ' + seg_method + ' and multiplier ' + str(multiplier))
+    print('Thresholding with ' + seg_method + ' and multiplier ' + str(multiplier))
     thresh = calculate_threshold(intensity_layer, seg_method)
     print('using raw threshold: ' + str(thresh) + ' and multiplier: ' + str(multiplier) + ' (final = ' + str(thresh*multiplier) + ')')
     text_box_thresh.setText(str(thresh*multiplier))
@@ -326,11 +334,11 @@ def on_apply_button_click():
         df = pd.DataFrame()
         df_summary = pd.DataFrame()
         if i < 9999:
-            
+            organoid_mask = skimage.io.imread(os.path.join(folder_path, 'organoid_masks', 'organoid_mask_' + file[:-4]  + '.tif'))
+
             #ch1
             print('processing channel 1')
             seg_im, measure_im = load_images(folder_path, file, 1)
-            organoid_mask = skimage.io.imread(os.path.join(folder_path, 'organoid_masks', 'organoid_mask_' + file[:-4]  + '.tif'))
             rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
             measure_im_64 = measure_im.astype(np.int64)
             masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
