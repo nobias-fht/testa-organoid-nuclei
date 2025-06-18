@@ -44,6 +44,22 @@ def load_image(file_path):
     im = loaded_im.data[0, :, 0, :, :]
     return im
 
+def find_largest_mask(label_image):
+    labels, counts = np.unique(label_image, return_counts=True)
+    
+    # Remove background (label 0) if present
+    if labels[0] == 0:
+        labels = labels[1:]
+        counts = counts[1:]
+    
+    if len(labels) == 0:
+        return None
+    
+    # Find index of maximum count
+    largest_idx = np.argmax(counts)
+    largest_label = labels[largest_idx]
+    
+    return largest_label
 
 def make_organoid_mask(filename, output_folder, image_path, seg_im):
             
@@ -68,9 +84,11 @@ def make_organoid_mask(filename, output_folder, image_path, seg_im):
     border_mask[int(h*0.1):int(h*0.9), int(w*0.1):int(w*0.9)] = False
     labs = skimage.measure.label(binary)
     labs = labs.astype(np.uint16)
+    largest_label = find_largest_mask(labs)
     border_labs = np.unique(labs[border_mask])
     for border in border_labs:
-        labs[labs == border] = 0
+        if border != largest_label:
+            labs[labs == border] = 0
 
     labs[labs > 0] = 1
 
