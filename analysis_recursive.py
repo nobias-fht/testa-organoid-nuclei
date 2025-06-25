@@ -3,6 +3,7 @@
 
 print('starting pipeline')
 print('importing libraries')
+from fileinput import filename
 import skimage
 import numpy as np
 import skimage.io
@@ -111,7 +112,25 @@ def process_images(im, filename, raw_savefolder, bg_sub_folder, dapi_channel):
             else:
                 sub_im = tophat_process(im[channel,:,:].astype(np.uint16))
                 skimage.io.imsave(bg_sub_folder + os.path.sep + 'channel_' + str(channel+1) + os.path.sep + 'bgsub_' + filename[:-4] + '_ch'  + str(channel+1) + '.tif', sub_im, check_contrast=False)
-      
+
+def check_images(output_folder):
+        pathfile = Path(os.path.join(output_folder, 'organoid_masks', 'organoid_mask_' + filename[:-4]  + '.tif'))
+        if not pathfile.exists():
+            return False
+        pathfile = Path(os.path.join(output_folder, 'preprocessed_images', 'channel_1', 'bgsub_' + filename[:-4]  + '_ch1.tif'))
+        if not pathfile.exists():
+            return False
+        pathfile = Path(os.path.join(output_folder, 'preprocessed_images', 'channel_2', 'bgsub_' + filename[:-4]  + '_ch2.tif'))        
+        if not pathfile.exists():
+            return False
+        pathfile = Path(os.path.join(output_folder, 'preprocessed_images', 'channel_3', 'bgsub_' + filename[:-4]  + '_ch3.tif'))
+        if not pathfile.exists():
+            return False
+        pathfile = Path(os.path.join(output_folder, 'segmentation', 'seg_' + filename[:-4]  + '.tif'))
+        if not pathfile.exists():
+            return False
+        
+        return True
 
 CONFIG_NAME = 'config.yaml'
 
@@ -153,9 +172,11 @@ for num, file in enumerate(file_paths):
         filename = os.path.basename(file)
 
         
-        pathfile = Path(os.path.join(output_folder, 'organoid_masks', 'organoid_mask_' + filename[:-4]  + '.tif'))
-        if pathfile.exists():
-            print('file exists, skipping')
+        #pathfile = Path(os.path.join(output_folder, 'organoid_masks', 'organoid_mask_' + filename[:-4]  + '.tif'))
+        #if pathfile.exists():
+        #    
+        if check_images(output_folder):
+            print('file already processed, skipping')
         else:
             for i in range(0, num_channels):
                 if i == dapi_channel:
