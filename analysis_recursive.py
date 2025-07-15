@@ -20,6 +20,7 @@ import subprocess
 import dask.array as da
 import pyclesperanto as cle
 from pathlib import Path
+import czifile
 device = cle.select_device("V100")
 print("Using GPU: ", device)
 
@@ -41,8 +42,14 @@ def tophat_process(im):
     return bg_sub_im
 
 def load_image(file_path):
-    loaded_im = AICSImage(file_path)
-    im = loaded_im.data[0, :, 0, :, :]
+
+    if file_path[-4:] == '.czi':
+        loaded_im = czifile.imread(file_path)
+        im = np.squeeze(loaded_im, axis=None)
+    else:
+        loaded_im = AICSImage(file_path)
+        im = np.squeeze(loaded_im.data)  
+
     return im
 
 def find_largest_mask(label_image):
@@ -148,8 +155,11 @@ print('dapi channel: ' + str(dapi_channel))
 file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + 'czi', recursive=True)
 
 
+
 temp_im = load_image(file_paths[0])
 num_channels = temp_im.shape[0]
+
+print('loaded image')
 
 os.makedirs(output_folder, exist_ok=True)
 
