@@ -59,7 +59,8 @@ def toggle_positive_nuclei_visibility():
     if layer:
         layer.visible = not layer.visible  
 
-
+def toggle_minimum_threshold():
+    print('toggled, fool!')
 
 def on_load_button_click():
     global last_path
@@ -172,12 +173,16 @@ def on_threshold_method_button_click():
 
     viewer.layers['thresholded'].data = np.where(intensity_layer > 0, 0, 0)
     seg_method = dropdown.currentText()
+    min_thresh = int(text_box_min_thresh.text())
     multiplier = float(text_box_multuplier.text())
     print('Thresholding with ' + seg_method + ' and multiplier ' + str(multiplier))
     thresh = calculate_threshold(intensity_layer, seg_method)
     print('using raw threshold: ' + str(thresh) + ' and multiplier: ' + str(multiplier) + ' (final = ' + str(thresh*multiplier) + ')')
     text_box_thresh.setText(str(thresh*multiplier))
-    viewer.layers['thresholded'].data = np.where(intensity_layer > thresh*multiplier, 1, 0)
+    viewer.layers['thresholded'].data = np.where((intensity_layer > thresh*multiplier) & (intensity_layer > min_thresh), 1, 0)
+
+
+
 
 def on_segment_button_click():
     thresh = text_box.text()
@@ -246,6 +251,15 @@ layout.addWidget(text_box_thresh)
 toggle_button = QPushButton("Toggle Positive Nuclei")
 toggle_button.clicked.connect(toggle_positive_nuclei_visibility) 
 layout.addWidget(toggle_button)
+
+label_min_thresh = QLabel("Minimum Threshold")
+layout.addWidget(label_min_thresh)  # Add the label to the layout
+text_box_min_thresh = QLineEdit()
+text_box_min_thresh.setReadOnly(False)  # Make the text box read-only
+text_box_min_thresh.setText('0')
+layout.addWidget(text_box_min_thresh)
+
+
 
 # Set the layout on the widget and add it to the viewer
 widget.setLayout(layout)
