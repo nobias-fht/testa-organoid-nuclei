@@ -11,7 +11,7 @@ import time
 
 
 
-size_threshold = 100
+#size_threshold = 100
 
 global last_path
 global global_multiplier
@@ -66,6 +66,7 @@ def on_load_button_click():
     print("Load Button was clicked!")
     file_path = easygui.fileopenbox(title="Select Processed Image File", default=last_path)
     if file_path is not None:
+        size_threshold = float(textbox_minsize.text())
 
         head, tail = os.path.split(file_path)
         last_path = head        
@@ -283,7 +284,8 @@ def load_images(base_path, filename, channel):
     return seg, measure
 
 def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold, base_path, filename, channel, organoid_mask, min_val):
-    
+    size_threshold = float(textbox_minsize.text())
+
     mask_im = np.multiply(mask_im, organoid_mask)
 
     stats = skimage.measure.regionprops_table(mask_im, intensity_image=intensity_im, properties=['label', 'mean_intensity', 'area'])    
@@ -490,7 +492,7 @@ label_min_object_size = QLabel("Minimum Object Size")
 layout2.addWidget(label_min_object_size) 
 textbox_minsize = QLineEdit()
 textbox_minsize.setReadOnly(False)  
-textbox_minsize.setText('100')
+textbox_minsize.setText('10')
 layout2.addWidget(textbox_minsize)
 
 label_ch1_method = QLabel("Channel 1 method")
