@@ -1,5 +1,5 @@
 #script developed by Damian Dalle Nogare at the Human Technopole Image Analysis Facility
-#released under BSD-3 License, 2024
+#released under BSD-3 License, 2024-2025
 
 print('starting pipeline')
 print('importing libraries')
@@ -21,10 +21,11 @@ import dask.array as da
 import pyclesperanto as cle
 from pathlib import Path
 import czifile
+from readlif.reader import LifFile
+
 device = cle.select_device("V100")
 print("Using GPU: ", device)
 
-#TODO: update to work also on tif files (same image type as czi, just format change)
 
 print('imports finished')
 
@@ -41,15 +42,40 @@ def tophat_process(im):
     del result_image
     return bg_sub_im
 
+def open_lif_file(file_path):
+    lif = LifFile(file_path)
+    im = new.get_image(0)
+    c_list = [i for i in im.get_iter_c(t=0)]
+    numc = len(c_list)
+    z_list = [i for i in im.get_iter_z(c=0)]
+    numz = len(z_list)
+    xdim,ydim = c_list[0].size
+    temp_im = np.zeros((numc, numz, ydim, xdim))
+
+    for c in range(numc):
+        print(c)
+        z_list = [i for i in im.get_iter_z(c=c)]
+        numz = len(z_list)
+        for z in range(len(z_list)):
+            temp_im[c, z, :, :] = z_list[z]
+    return temp_im
+
+
 def load_image(file_path):
 
     if file_path[-4:] == '.czi':
         loaded_im = czifile.imread(file_path)
         im = np.squeeze(loaded_im, axis=None)
+    if file_path[-4:] == '.czi':
+        loaded_im = open_lif_file(file_path)
+        im = np.squeeze(loaded_im, axis=None)
     else:
         loaded_im = AICSImage(file_path)
         im = np.squeeze(loaded_im.data)  
-
+    print(im.shape)
+    if do_3D:
+        im_proj = np.mean(im, axis=1)
+        return im_proj
     return im
 
 def find_largest_mask(label_image):
@@ -74,6 +100,8 @@ def make_organoid_mask(filename, output_folder, image_path, seg_im):
     os.makedirs(os.path.join(output_folder, 'organoid_masks'), exist_ok=True)
     temp_im = np.zeros(seg_im.shape)
     raw_files = os.listdir(image_path)
+    raw_files = [f for f in raw_files if f != '.DS_Store']
+
     for folder in raw_files:
         if 'dapi' not in folder:
             ch_file = skimage.io.imread(os.path.join(image_path, folder, 'bgsub_' + filename[:-4] + '_ch' + str(folder[-1]) + '.tif')) 
@@ -147,17 +175,29 @@ with open(CONFIG_NAME, "r") as f:
 raw_folder = config['raw_folder']
 output_folder = config['output_folder']
 dapi_channel = config['dapi_channel']
-cellpose_model = config['cellpose_model_czi']
+
+file_extension = config['file_extension']
+do_3D = config['do_3D']
+num_channels = config['num_channels']
 print('raw folder: ' + str(raw_folder))
 print('output folder: ' + str(output_folder))
 print('dapi channel: ' + str(dapi_channel))
 
-file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + 'czi', recursive=True)
+file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + file_extension, recursive=True)
+
+if file_extension == 'czi': 
+    cellpose_model = config['cellpose_model_czi']
+elif file_extension == 'lif':
+    cellpose_model = config['cellpose_model_lif']
+elif file_extension == 'nd2':
+    cellpose_model = config['cellpose_model_nd2']
+else:
+    cellpose_model = config['cellpose_model_other']
 
 
+#temp_im = load_image(file_paths[0])
+#num_channels = temp_im.shape[0]
 
-temp_im = load_image(file_paths[0])
-num_channels = temp_im.shape[0]
 
 print('loaded image')
 
