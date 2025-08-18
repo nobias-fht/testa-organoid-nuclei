@@ -12,7 +12,6 @@ import time
 
 
 
-#size_threshold = 100
 
 global last_path
 global global_multiplier
@@ -39,7 +38,17 @@ dapi_channel = config['dapi_channel']
 
 num_channels = config['num_channels']
 
+quant_channels = []
 
+for chan in range(1, num_channels+1):
+    if chan != dapi_channel:
+        quant_channels.append(chan)
+
+print('total channels = ' + str(num_channels))
+print('channels to quantifty = ' + str(quant_channels))
+print('dapi channel = ' + str(dapi_channel))
+
+dapi_channel = dapi_channel - 1
 
 basic_properties = [
         # Basic shape properties
@@ -127,31 +136,31 @@ def on_load_button_click():
  
 
 
-def on_load_button_segmentation_click():
-    print("Load Segmentation Button was clicked!")
-    file_path = easygui.fileopenbox(title="Select Segmentation File")
-    if file_path is not None:
-        filename = os.path.basename(file_path)
-        masks = imread(file_path)
+# def on_load_button_segmentation_click():
+#     print("Load Segmentation Button was clicked!")
+#     file_path = easygui.fileopenbox(title="Select Segmentation File")
+#     if file_path is not None:
+#         filename = os.path.basename(file_path)
+#         masks = imread(file_path)
 
-        measure_im = viewer.layers['raw_image'].data
-        stats = skimage.measure.regionprops_table(masks, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
-        filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
+#         measure_im = viewer.layers['raw_image'].data
+#         stats = skimage.measure.regionprops_table(masks, intensity_image=measure_im, properties=['label', 'mean_intensity', 'area'])
+#         filtered_stats = {key: value[stats['area'] >= size_threshold] for key, value in stats.items()}
         
-        max_label = masks.max()
-        lookup_array = np.zeros(max_label + 1, dtype=np.float32)
-        for label, mean_intensity, area in zip(stats['label'], stats['mean_intensity'], stats['area']):
-                if area > size_threshold:
-                    lookup_array[label] = mean_intensity
-        intensity_image = lookup_array[masks]
-        viewer.add_image(intensity_image, name='intensity_image', blending='additive', visible=False)
-        thresholded = np.zeros_like(intensity_image)
-        viewer.add_image(thresholded, name='thresholded', blending='additive', visible=True, colormap='red')
+#         max_label = masks.max()
+#         lookup_array = np.zeros(max_label + 1, dtype=np.float32)
+#         for label, mean_intensity, area in zip(stats['label'], stats['mean_intensity'], stats['area']):
+#                 if area > size_threshold:
+#                     lookup_array[label] = mean_intensity
+#         intensity_image = lookup_array[masks]
+#         viewer.add_image(intensity_image, name='intensity_image', blending='additive', visible=False)
+#         thresholded = np.zeros_like(intensity_image)
+#         viewer.add_image(thresholded, name='thresholded', blending='additive', visible=True, colormap='red')
         
         
        
-    else:
-        print("No file was selected.")
+#     else:
+#         print("No file was selected.")
 
 def calculate_threshold(intensity_im, seg_method):  
 
@@ -204,18 +213,18 @@ def apply_minimum_threshold():
     viewer.layers['thresholded'].data = np.where((intensity_layer > thresh*multiplier) & (intensity_layer > min_thresh), 1, 0)
      
 
-def on_segment_button_click():
-    thresh = text_box.text()
-    thresh = int(float(thresh))
-    intensity_layer = next((layer for layer in viewer.layers if layer.name == 'intensity_image'), None).data
-    viewer.layers['thresholded'].data = np.where(intensity_layer > 0, 0, 0)
-    viewer.layers['thresholded'].data = np.where(intensity_layer > thresh, 1, 0)
+# def on_segment_button_click():
+#     thresh = text_box.text()
+#     thresh = int(float(thresh))
+#     intensity_layer = next((layer for layer in viewer.layers if layer.name == 'intensity_image'), None).data
+#     viewer.layers['thresholded'].data = np.where(intensity_layer > 0, 0, 0)
+#     viewer.layers['thresholded'].data = np.where(intensity_layer > thresh, 1, 0)
 
-def on_slider_change(value):
-    global global_multiplier
-    real_value = value / 20.0
-    text_box.setText(f"{real_value:.2f}")
-    global_multiplier = real_value
+# def on_slider_change(value):
+#     global global_multiplier
+#     real_value = value / 20.0
+#     text_box.setText(f"{real_value:.2f}")
+#     global_multiplier = real_value
 
 # Create a napari viewer
 viewer = napari.Viewer()
@@ -361,26 +370,52 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
 #     rounded_intensity, classification, labels, thresh = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
 
 
+def process_channel(folder_path, file, channel, seg_method, scaling, size_threshold, organoid_mask, min_val):
+
+    print('processing channel ' + str(channel))
+    seg_im, measure_im = load_images(folder_path, file, channel)
+    rounded_intensity, classification, labels, thresh = threshold_channel(seg_method, seg_im, measure_im, scaling, size_threshold, folder_path, file, 1, organoid_mask, min_val)
+    measure_im_64 = measure_im.astype(np.int64)
+    masked_intensity = np.sum(measure_im_64[organoid_mask > 0])
+    nuclear_intensity = np.sum(measure_im_64[seg_im > 0])
+    stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+    int_props_df = pd.DataFrame(stats)
+    int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch' + str(channel) + '_intensity_stats.csv'))
+    return rounded_intensity, classification, labels, thresh, masked_intensity, nuclear_intensity
+
 def on_apply_button_click():
 
     folder_path = easygui.diropenbox(title="Select Processed Image Folder")
     print(folder_path)
-    ch1_seg_method = dropdown_ch1.currentText()
-    ch2_seg_method = dropdown_ch2.currentText()
-    ch3_seg_method = dropdown_ch3.currentText()
-    ch1_scaling = float(textbox_scaling_ch1.text())
-    ch2_scaling = float(textbox_scaling_ch2.text())
-    ch3_scaling = float(textbox_scaling_ch3.text())
-    ch1_min = float(textbox_min_ch1.text())
-    ch2_min = float(textbox_min_ch2.text())
-    ch3_min = float(textbox_min_ch3.text())
 
+    seg_methods = []
+    scalings = []
+    mins = []
+
+    seg_methods.append(dropdown_ch1.currentText())
+    scalings.append(float(textbox_scaling_ch1.text()))                         
+    mins.append(float(textbox_min_ch1.text()))
+
+    if len(quant_channels) > 1:
+        seg_methods.append(dropdown_ch2.currentText())
+        scalings.append(float(textbox_scaling_ch2.text()))
+        mins.append(float(textbox_min_ch2.text()))
+    
+    if len(quant_channels) > 2:
+        seg_methods.append(dropdown_ch3.currentText())
+        scalings.append(float(textbox_scaling_ch3.text()))
+        mins.append(float(textbox_min_ch3.text()))
+
+
+    print(seg_methods)
+    print(scalings)
+    print(mins)
 
     size_threshold = float(textbox_minsize.text())
     
-    print('ch1: ' + ch1_seg_method + ' with scaling of ' + str(ch1_scaling) + ' and min of ' + str(ch1_min))
-    print('ch2: ' + ch2_seg_method + ' with scaling of ' + str(ch2_scaling) + ' and min of ' + str(ch2_min))
-    print('ch3: ' + ch3_seg_method + ' with scaling of ' + str(ch3_scaling) + ' and min of ' + str(ch3_min))
+    #print('ch1: ' + ch1_seg_method + ' with scaling of ' + str(ch1_scaling) + ' and min of ' + str(ch1_min))
+    #print('ch2: ' + ch2_seg_method + ' with scaling of ' + str(ch2_scaling) + ' and min of ' + str(ch2_min))
+    #print('ch3: ' + ch3_seg_method + ' with scaling of ' + str(ch3_scaling) + ' and min of ' + str(ch3_min))
   
     
     #make folders to store results in
@@ -412,62 +447,110 @@ def on_apply_button_click():
 
         ###FUNCTIONALIZE CHANNEL PROCESSING CODE
 
-
-
-            #ch1
-            print('processing channel 1')
-            seg_im, measure_im = load_images(folder_path, file, 1)
-            rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
-            measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
-            nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
-
-            #get the non-intensity props
+            #get basic stats:
+            seg_im, measure_im = load_images(folder_path, file, quant_channels[0])
             stats = skimage.measure.regionprops_table(seg_im, intensity_image=None, properties=basic_properties)    
             basic_props_df = pd.DataFrame(stats)
             basic_props_df.to_csv(os.path.join(folder_path, 'quantification', 'morph_stats.csv'))
-            #get the intensity props
-            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
-            int_props_df = pd.DataFrame(stats)
-            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch1_intensity_stats.csv'))
-            #ch2
-            print('processing channel 2')
-            seg_im, measure_im = load_images(folder_path, file, 2)
-            rounded_intensity_ch2, classification_ch2, labels, thresh_ch2 = threshold_channel(ch2_seg_method, seg_im, measure_im, ch2_scaling, size_threshold, folder_path, file, 2, organoid_mask, ch2_min)
-            measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch2 = np.sum(measure_im_64[organoid_mask > 0])
-            nuclear_intensity_ch2 = np.sum(measure_im_64[seg_im > 0])
-            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
-            int_props_df = pd.DataFrame(stats)
-            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch2_intensity_stats.csv'))
-            #ch3
-            print('processing channel 3')
-            seg_im, measure_im = load_images(folder_path, file, 3)
-            rounded_intensity_ch3, classification_ch3, labels, thresh_ch3 = threshold_channel(ch3_seg_method, seg_im, measure_im, ch3_scaling, size_threshold, folder_path, file, 3, organoid_mask, ch3_min) 
-            measure_im_64 = measure_im.astype(np.int64)
-            masked_intensity_ch3 = np.sum(measure_im_64[organoid_mask > 0])
-            nuclear_intensity_ch3 = np.sum(measure_im_64[seg_im > 0])
-            stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
-            int_props_df = pd.DataFrame(stats)
-            int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch3_intensity_stats.csv'))
+
+#(folder_path, file, channel, seg_method, seg_im, measure_im, scaling, size_threshold, organoid_mask, min_val)
+            channel_names = []
+            rounded_intensities = []
+            classifications = []
+            thresholds = []
+            masked_intensities = []
+            nuclear_intensities = []
+            for quant_chan_num, quant_channel in enumerate(quant_channels):
+                rounded_intensity, classification, labels, thresh, masked_intensity, nuclear_intensity = process_channel(folder_path, file, quant_channel, seg_methods[quant_chan_num], scalings[quant_chan_num], size_threshold, organoid_mask, mins[quant_chan_num])
+                channel_names.append('ch' + str(quant_channel))
+                rounded_intensities.append(rounded_intensity)
+                classifications.append(classification)
+                thresholds.append(thresh)
+                masked_intensities.append(masked_intensity)
+                nuclear_intensities.append(nuclear_intensity)
+
+
+            # #ch1
+            # print('processing channel 1')
+            # seg_im, measure_im = load_images(folder_path, file, 1)
+            # rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
+            # measure_im_64 = measure_im.astype(np.int64)
+            # masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
+            # nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
+            # stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            # int_props_df = pd.DataFrame(stats)
+            # int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch1_intensity_stats.csv'))
+            
+            
+            
+            # #ch2
+            # print('processing channel 2')
+            # seg_im, measure_im = load_images(folder_path, file, 2)
+            # rounded_intensity_ch2, classification_ch2, labels, thresh_ch2 = threshold_channel(ch2_seg_method, seg_im, measure_im, ch2_scaling, size_threshold, folder_path, file, 2, organoid_mask, ch2_min)
+            # measure_im_64 = measure_im.astype(np.int64)
+            # masked_intensity_ch2 = np.sum(measure_im_64[organoid_mask > 0])
+            # nuclear_intensity_ch2 = np.sum(measure_im_64[seg_im > 0])
+            # stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            # int_props_df = pd.DataFrame(stats)
+            # int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch2_intensity_stats.csv'))
+            
+            
+            
+            
+            # #ch3
+            # print('processing channel 3')
+            # seg_im, measure_im = load_images(folder_path, file, 3)
+            # rounded_intensity_ch3, classification_ch3, labels, thresh_ch3 = threshold_channel(ch3_seg_method, seg_im, measure_im, ch3_scaling, size_threshold, folder_path, file, 3, organoid_mask, ch3_min) 
+            # measure_im_64 = measure_im.astype(np.int64)
+            # masked_intensity_ch3 = np.sum(measure_im_64[organoid_mask > 0])
+            # nuclear_intensity_ch3 = np.sum(measure_im_64[seg_im > 0])
+            # stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+            # int_props_df = pd.DataFrame(stats)
+            # int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch3_intensity_stats.csv'))
 
             df['labels'] = labels
-            df['ch1_intensities'] = rounded_intensity_ch1
-            df['ch2_intensities'] = rounded_intensity_ch2
-            df['ch3_intensities'] = rounded_intensity_ch3
-            df['ch1_positive'] = classification_ch1
-            df['ch2_positive'] = classification_ch2
-            df['ch3_positive'] = classification_ch3
+
+            for quant_num in range(0, len(quant_channels)):
+                df[channel_names[quant_num] + '_intensities'] = rounded_intensities[quant_num]
+                df[channel_names[quant_num] + '_positive'] = classifications[quant_num]
+
+            # df['ch1_intensities'] = rounded_intensity_ch1
+            # df['ch2_intensities'] = rounded_intensity_ch2
+            # df['ch3_intensities'] = rounded_intensity_ch3
+            # df['ch1_positive'] = classification_ch1
+            # df['ch2_positive'] = classification_ch2
+            # df['ch3_positive'] = classification_ch3
 
             df.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + '.csv'))
 
-            num_cells = np.amax(df['labels'])
+            num_cells = len(df['labels'])
 
-            summary_labels = ['filename', 'ch1_threshold_method', 'ch2_threshold_method', 'ch3_threshold_method', 'ch1_threshold_scaling', 'ch2_threshold_scaling', 'ch3_threshold_scaling', 
-                              'ch1_threshold', 'ch2_threshold', 'ch3_threshold', 'ch1_positive', 'ch2_positive', 'ch3_positive', 'total_cells', 'ch1_sum_total', 'ch2_sum_total', 'ch3_sum_total', 'ch1_sum_nuclei', 'ch2_sum_nuclei', 'ch3_sum_nuclei', 'mask_area', 'nuclear_area']
+            #generate summary labels
+            summary_labels = ['filename', 'total_cells', 'mask_area', 'nuclear_area', 'min_size']
+            summary_data = [file, str(num_cells), np.sum(organoid_mask), np.sum(seg_im > 0), size_threshold]
 
-            summary_data = [file, ch1_seg_method, ch2_seg_method, ch3_seg_method, str(ch1_scaling), str(ch2_scaling), str(ch3_scaling), 
-                            str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1)), masked_intensity_ch1, masked_intensity_ch2, masked_intensity_ch3, nuclear_intensity_ch1, nuclear_intensity_ch2, nuclear_intensity_ch3, np.sum(organoid_mask), np.sum(seg_im > 0)]
+
+            for quant_num in range(0, len(quant_channels)):
+                summary_labels.append(channel_names[quant_num] + '_threshold_method')
+                summary_labels.append(channel_names[quant_num] + '_threshold_scaling')
+                summary_labels.append(channel_names[quant_num] + '_threshold')
+                summary_labels.append(channel_names[quant_num] + '_positive')
+                summary_labels.append(channel_names[quant_num] + '_sum_total')
+                summary_labels.append(channel_names[quant_num] + '_sum_nuclei')
+
+                summary_data.append(seg_methods[quant_num])
+                summary_data.append(str(scalings[quant_num]))
+                summary_data.append(str(round(thresholds[quant_num], 2)))
+                summary_data.append(str(sum(classifications[quant_num])))
+                summary_data.append(str(masked_intensities[quant_num]))
+                summary_data.append(str(nuclear_intensities[quant_num]))
+            
+
+            # summary_labels = ['filename', 'ch1_threshold_method', 'ch2_threshold_method', 'ch3_threshold_method', 'ch1_threshold_scaling', 'ch2_threshold_scaling', 'ch3_threshold_scaling', 
+            #                   'ch1_threshold', 'ch2_threshold', 'ch3_threshold', 'ch1_positive', 'ch2_positive', 'ch3_positive', 'total_cells', 'ch1_sum_total', 'ch2_sum_total', 'ch3_sum_total', 'ch1_sum_nuclei', 'ch2_sum_nuclei', 'ch3_sum_nuclei', 'mask_area', 'nuclear_area']
+
+            # summary_data = [file, ch1_seg_method, ch2_seg_method, ch3_seg_method, str(ch1_scaling), str(ch2_scaling), str(ch3_scaling), 
+            #                 str(round(thresh_ch1, 2)), str(round(thresh_ch2, 2)), str(round(thresh_ch3, 2)), str(sum(classification_ch1)), str(sum(classification_ch2)), str(sum(classification_ch3)), str(len(classification_ch1)), masked_intensity_ch1, masked_intensity_ch2, masked_intensity_ch3, nuclear_intensity_ch1, nuclear_intensity_ch2, nuclear_intensity_ch3, np.sum(organoid_mask), np.sum(seg_im > 0)]
 
             df_summary['labels'] = summary_labels
             df_summary['data'] = summary_data
@@ -482,15 +565,24 @@ def on_apply_button_click():
                 files.append(file)
         image_name = []
         total_cells = []
+
+
         ch1_positive = []
         ch2_positive = []
         ch3_positive = []
+        ch4_positive = []
+
         ch1_intensity_sum = []
         ch2_intensity_sum = []
         ch3_intensity_sum = []
+        ch4_intensity_sum = []
+
         ch1_intensity_nuclear = []
         ch2_intensity_nuclear = []
         ch3_intensity_nuclear = []
+        ch4_intensity_nuclear = []
+
+
         mask_area = []
         nuclear_area = []
      
@@ -498,33 +590,67 @@ def on_apply_button_click():
             image_name.append(file)
             df = pd.read_csv(os.path.join(folder_path, 'quantification', file))
             total_cells.append(int(df[df['labels'].str.contains("total_cells")]['data'].item()))
-            ch1_positive.append(int(df[df['labels'].str.contains("ch1_positive")]['data'].item()))
-            ch2_positive.append(int(df[df['labels'].str.contains("ch2_positive")]['data'].item()))
-            ch3_positive.append(int(df[df['labels'].str.contains("ch3_positive")]['data'].item()))
-            ch1_intensity_sum.append(int(df[df['labels'].str.contains("ch1_sum_total")]['data'].item()))
-            ch2_intensity_sum.append(int(df[df['labels'].str.contains("ch2_sum_total")]['data'].item()))
-            ch3_intensity_sum.append(int(df[df['labels'].str.contains("ch3_sum_total")]['data'].item()))
-            ch1_intensity_nuclear.append(int(df[df['labels'].str.contains("ch1_sum_nuclei")]['data'].item()))
-            ch2_intensity_nuclear.append(int(df[df['labels'].str.contains("ch2_sum_nuclei")]['data'].item()))
-            ch3_intensity_nuclear.append(int(df[df['labels'].str.contains("ch3_sum_nuclei")]['data'].item()))
             mask_area.append(int(df[df['labels'].str.contains("mask_area")]['data'].item()))
             nuclear_area.append(int(df[df['labels'].str.contains("nuclear_area")]['data'].item()))
+
+            if 'ch1' in channel_names:
+                ch1_positive.append(int(df[df['labels'].str.contains("ch1_positive")]['data'].item()))
+                ch1_intensity_sum.append(int(df[df['labels'].str.contains("ch1_sum_total")]['data'].item()))
+                ch1_intensity_nuclear.append(int(df[df['labels'].str.contains("ch1_sum_nuclei")]['data'].item()))
+
+
+            if 'ch2' in channel_names:
+                ch2_positive.append(int(df[df['labels'].str.contains("ch2_positive")]['data'].item()))
+                ch2_intensity_sum.append(int(df[df['labels'].str.contains("ch2_sum_total")]['data'].item()))
+                ch2_intensity_nuclear.append(int(df[df['labels'].str.contains("ch2_sum_nuclei")]['data'].item()))
+
+            if 'ch3' in channel_names:
+                ch3_positive.append(int(df[df['labels'].str.contains("ch3_positive")]['data'].item()))
+                ch3_intensity_sum.append(int(df[df['labels'].str.contains("ch3_sum_total")]['data'].item()))
+                ch3_intensity_nuclear.append(int(df[df['labels'].str.contains("ch3_sum_nuclei")]['data'].item()))
+
+            if 'ch4' in channel_names:
+                ch4_positive.append(int(df[df['labels'].str.contains("ch4_positive")]['data'].item()))
+                ch4_intensity_sum.append(int(df[df['labels'].str.contains("ch4_sum_total")]['data'].item()))
+                ch4_intensity_nuclear.append(int(df[df['labels'].str.contains("ch4_sum_nuclei")]['data'].item()))
+
+            #fix this
+            # ch1_positive.append(int(df[df['labels'].str.contains("ch1_positive")]['data'].item()))
+            # ch2_positive.append(int(df[df['labels'].str.contains("ch2_positive")]['data'].item()))
+            # ch3_positive.append(int(df[df['labels'].str.contains("ch3_positive")]['data'].item()))
+            # ch1_intensity_sum.append(int(df[df['labels'].str.contains("ch1_sum_total")]['data'].item()))
+            # ch2_intensity_sum.append(int(df[df['labels'].str.contains("ch2_sum_total")]['data'].item()))
+            # ch3_intensity_sum.append(int(df[df['labels'].str.contains("ch3_sum_total")]['data'].item()))
+            # ch1_intensity_nuclear.append(int(df[df['labels'].str.contains("ch1_sum_nuclei")]['data'].item()))
+            # ch2_intensity_nuclear.append(int(df[df['labels'].str.contains("ch2_sum_nuclei")]['data'].item()))
+            # ch3_intensity_nuclear.append(int(df[df['labels'].str.contains("ch3_sum_nuclei")]['data'].item()))
+           
 
         new_df = pd.DataFrame()
         new_df['file_name'] = image_name
         new_df['total_cells'] = total_cells
-        new_df['ch1_positive'] = ch1_positive
-        new_df['ch2_positive'] = ch2_positive
-        new_df['ch3_positive'] = ch3_positive
-        new_df['ch1_intensity_sum'] = ch1_intensity_sum
-        new_df['ch2_intensity_sum'] = ch2_intensity_sum
-        new_df['ch3_intensity_sum'] = ch3_intensity_sum
-        new_df['ch1_intensity_nuclear'] = ch1_intensity_nuclear
-        new_df['ch2_intensity_nuclear'] = ch2_intensity_nuclear
-        new_df['ch3_intensity_nuclear'] = ch3_intensity_nuclear
         new_df['mask_area'] = mask_area
         new_df['nuclear_area'] = nuclear_area
-        #here, add total intensity, and sum intensity for each channel
+        if 'ch1' in channel_names:
+            new_df['ch1_positive'] = ch1_positive
+            new_df['ch1_intensity_sum'] = ch1_intensity_sum
+            new_df['ch1_intensity_nuclear'] = ch1_intensity_nuclear
+
+        if 'ch2' in channel_names:
+            new_df['ch2_positive'] = ch2_positive
+            new_df['ch2_intensity_sum'] = ch2_intensity_sum
+            new_df['ch2_intensity_nuclear'] = ch2_intensity_nuclear
+
+        if 'ch3' in channel_names:
+            new_df['ch3_positive'] = ch3_positive
+            new_df['ch3_intensity_sum'] = ch3_intensity_sum
+            new_df['ch3_intensity_nuclear'] = ch3_intensity_nuclear
+   
+        if 'ch4' in channel_names:
+            new_df['ch4_positive'] = ch4_positive
+            new_df['ch4_intensity_sum'] = ch4_intensity_sum
+            new_df['ch4_intensity_nuclear'] = ch4_intensity_nuclear
+   
 
 
         new_df.to_csv(os.path.join(folder_path, 'summary.csv'))
@@ -536,12 +662,15 @@ label_min_object_size = QLabel("Minimum Object Size")
 layout2.addWidget(label_min_object_size) 
 textbox_minsize = QLineEdit()
 textbox_minsize.setReadOnly(False)  
-textbox_minsize.setText('10')
+textbox_minsize.setText('100')
 layout2.addWidget(textbox_minsize)
 
 ##Only add the number of channels required, depending on which channels there are
 
-label_ch1_method = QLabel("Channel 1 method")
+
+
+
+label_ch1_method = QLabel("Channel " + str(quant_channels[0]) + " method")
 layout2.addWidget(label_ch1_method)  
 
 dropdown_ch1 = QComboBox()
@@ -555,7 +684,7 @@ dropdown_ch1.addItem("yen")
 
 layout2.addWidget(dropdown_ch1)
 
-label_ch1_scaling = QLabel("Channel 1 scaling")
+label_ch1_scaling = QLabel("Channel " + str(quant_channels[0]) + " scaling")
 layout2.addWidget(label_ch1_scaling)  
 
 textbox_scaling_ch1 = QLineEdit()
@@ -563,7 +692,7 @@ textbox_scaling_ch1.setReadOnly(False)
 textbox_scaling_ch1.setText('1')
 layout2.addWidget(textbox_scaling_ch1)
 
-label_ch1_min = QLabel("Channel 1 minimum value")
+label_ch1_min = QLabel("Channel " + str(quant_channels[0]) + " minimum value")
 layout2.addWidget(label_ch1_min)  
 
 textbox_min_ch1 = QLineEdit()
@@ -571,69 +700,74 @@ textbox_min_ch1.setReadOnly(False)
 textbox_min_ch1.setText('0')
 layout2.addWidget(textbox_min_ch1)
 
-label_ch2_method = QLabel("Channel 2 method")
-layout2.addWidget(label_ch2_method)  
 
-dropdown_ch2 = QComboBox()
-dropdown_ch2.addItem("otsu")
-dropdown_ch2.addItem("triangle")
-dropdown_ch2.addItem("isodata")
-dropdown_ch2.addItem("li")
-dropdown_ch2.addItem("mean")
-dropdown_ch2.addItem("minimum")
-dropdown_ch2.addItem("yen")
+if len(quant_channels) > 1:
 
-layout2.addWidget(dropdown_ch2)
+    label_ch2_method = QLabel("Channel " + str(quant_channels[1]) + " method")
+    layout2.addWidget(label_ch2_method)  
 
+    dropdown_ch2 = QComboBox()
+    dropdown_ch2.addItem("otsu")
+    dropdown_ch2.addItem("triangle")
+    dropdown_ch2.addItem("isodata")
+    dropdown_ch2.addItem("li")
+    dropdown_ch2.addItem("mean")
+    dropdown_ch2.addItem("minimum")
+    dropdown_ch2.addItem("yen")
 
-label_ch2_scaling = QLabel("Channel 2 scaling")
-layout2.addWidget(label_ch2_scaling)  
-
-textbox_scaling_ch2 = QLineEdit()
-textbox_scaling_ch2.setReadOnly(False) 
-textbox_scaling_ch2.setText('1')
-
-layout2.addWidget(textbox_scaling_ch2)
-
-label_ch2_min = QLabel("Channel 2 minimum value")
-layout2.addWidget(label_ch2_min)  
-
-textbox_min_ch2 = QLineEdit()
-textbox_min_ch2.setReadOnly(False)  
-textbox_min_ch2.setText('0')
-layout2.addWidget(textbox_min_ch2)
-
-label_ch3_method = QLabel("Channel 3 method")
-layout2.addWidget(label_ch3_method)  
-
-dropdown_ch3 = QComboBox()
-dropdown_ch3.addItem("otsu")
-dropdown_ch3.addItem("triangle")
-dropdown_ch3.addItem("isodata")
-dropdown_ch3.addItem("li")
-dropdown_ch3.addItem("mean")
-dropdown_ch3.addItem("minimum")
-dropdown_ch3.addItem("yen")
-
-layout2.addWidget(dropdown_ch3)
-
-label_ch3_scaling = QLabel("Channel 3 scaling")
-layout2.addWidget(label_ch3_scaling)  
-
-textbox_scaling_ch3 = QLineEdit()
-textbox_scaling_ch3.setReadOnly(False)
-textbox_scaling_ch3.setText('1')
-
-layout2.addWidget(textbox_scaling_ch3)
+    layout2.addWidget(dropdown_ch2)
 
 
-label_ch3_min = QLabel("Channel 3 minimum value")
-layout2.addWidget(label_ch3_min)  
+    label_ch2_scaling = QLabel("Channel " + str(quant_channels[1]) + " scaling")
+    layout2.addWidget(label_ch2_scaling)  
 
-textbox_min_ch3 = QLineEdit()
-textbox_min_ch3.setReadOnly(False)  
-textbox_min_ch3.setText('0')
-layout2.addWidget(textbox_min_ch3)
+    textbox_scaling_ch2 = QLineEdit()
+    textbox_scaling_ch2.setReadOnly(False) 
+    textbox_scaling_ch2.setText('1')
+
+    layout2.addWidget(textbox_scaling_ch2)
+
+    label_ch2_min = QLabel("Channel " + str(quant_channels[1]) + " minimum value")
+    layout2.addWidget(label_ch2_min)  
+
+    textbox_min_ch2 = QLineEdit()
+    textbox_min_ch2.setReadOnly(False)  
+    textbox_min_ch2.setText('0')
+    layout2.addWidget(textbox_min_ch2)
+
+if len(quant_channels) > 2:
+
+    label_ch3_method = QLabel("Channel " + str(quant_channels[2]) + " method")
+    layout2.addWidget(label_ch3_method)  
+
+    dropdown_ch3 = QComboBox()
+    dropdown_ch3.addItem("otsu")
+    dropdown_ch3.addItem("triangle")
+    dropdown_ch3.addItem("isodata")
+    dropdown_ch3.addItem("li")
+    dropdown_ch3.addItem("mean")
+    dropdown_ch3.addItem("minimum")
+    dropdown_ch3.addItem("yen")
+
+    layout2.addWidget(dropdown_ch3)
+
+    label_ch3_scaling = QLabel("Channel " + str(quant_channels[2]) + " scaling")
+    layout2.addWidget(label_ch3_scaling)  
+
+    textbox_scaling_ch3 = QLineEdit()
+    textbox_scaling_ch3.setReadOnly(False)
+    textbox_scaling_ch3.setText('1')
+
+    layout2.addWidget(textbox_scaling_ch3)
+
+
+    label_ch3_min = QLabel("Channel " + str(quant_channels[2]) + " minimum value")
+    layout2.addWidget(label_ch3_min)  
+
+    textbox_min_ch3 = QLineEdit()
+    textbox_min_ch3.setReadOnly(False)  
+    textbox_min_ch3.setText('0')
+    layout2.addWidget(textbox_min_ch3)
 
 apply_button = QPushButton("Apply Threshold to Folder")
 apply_button.clicked.connect(on_apply_button_click)
