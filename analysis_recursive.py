@@ -130,7 +130,6 @@ def make_organoid_mask(filename, output_folder, image_path, seg_im):
 
     return labs
 
-
 def process_images(im, filename, raw_savefolder, bg_sub_folder, dapi_channel):
 
     for channel in range(0, im.shape[0]):

@@ -5,6 +5,7 @@ import easygui
 import numpy as np
 from skimage.io import imread
 import os
+import yaml
 import skimage
 import pandas as pd
 import time
@@ -24,6 +25,21 @@ global_multiplier = 0
 ch_mean = 0
 ch_sd = 0
 df = pd.DataFrame()
+
+CONFIG_NAME = 'config.yaml'
+
+with open(CONFIG_NAME, "r") as f:
+	config = yaml.safe_load(f)
+
+# raw_folder = config['raw_folder']
+# output_folder = config['output_folder']
+
+
+dapi_channel = config['dapi_channel']
+
+num_channels = config['num_channels']
+
+
 
 basic_properties = [
         # Basic shape properties
@@ -321,6 +337,30 @@ def threshold_channel(seg_method, mask_im, intensity_im, scaling, size_threshold
     
 
 
+
+# print('processing channel 1')
+#             seg_im, measure_im = load_images(folder_path, file, 1)
+#             rounded_intensity_ch1, classification_ch1, labels, thresh_ch1 = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
+#             measure_im_64 = measure_im.astype(np.int64)
+#             masked_intensity_ch1 = np.sum(measure_im_64[organoid_mask > 0])
+#             nuclear_intensity_ch1 = np.sum(measure_im_64[seg_im > 0])
+
+#             #get the non-intensity props
+#             stats = skimage.measure.regionprops_table(seg_im, intensity_image=None, properties=basic_properties)    
+#             basic_props_df = pd.DataFrame(stats)
+#             basic_props_df.to_csv(os.path.join(folder_path, 'quantification', 'morph_stats.csv'))
+#             #get the intensity props
+#             stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+#             int_props_df = pd.DataFrame(stats)
+#             int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch1_intensity_stats.csv'))
+#             #ch2
+
+
+# def process_channel(folder_path, file, channel)
+#     seg_im, measure_im = load_images(folder_path, file, channel)
+#     rounded_intensity, classification, labels, thresh = threshold_channel(ch1_seg_method, seg_im, measure_im, ch1_scaling, size_threshold, folder_path, file, 1, organoid_mask, ch1_min)
+
+
 def on_apply_button_click():
 
     folder_path = easygui.diropenbox(title="Select Processed Image Folder")
@@ -369,6 +409,10 @@ def on_apply_button_click():
         df_summary = pd.DataFrame()
         if i < 9999:
             organoid_mask = skimage.io.imread(os.path.join(folder_path, 'organoid_masks', 'organoid_mask_' + file[:-4]  + '.tif'))
+
+        ###FUNCTIONALIZE CHANNEL PROCESSING CODE
+
+
 
             #ch1
             print('processing channel 1')
@@ -494,6 +538,8 @@ textbox_minsize = QLineEdit()
 textbox_minsize.setReadOnly(False)  
 textbox_minsize.setText('10')
 layout2.addWidget(textbox_minsize)
+
+##Only add the number of channels required, depending on which channels there are
 
 label_ch1_method = QLabel("Channel 1 method")
 layout2.addWidget(label_ch1_method)  
