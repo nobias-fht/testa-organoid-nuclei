@@ -45,16 +45,17 @@ If you have previously installed a  version of the pipeline, you must remove the
   - If you have placed the models in a `models` folder in the same place the script is kept, you should not need to update the `cellpose_model_nd2` and `cellpose_model_czi` fields.
 - Run the pipeline by typing `python analysis_recursive.py`
 
-## Step 2: Quantifying the nuclear intensity 
+## Step 2: Quantifying the Number of Positive Cells 
 
- - In the same terminal, open the Napari interface by typing `python check_thresholds.py`
+ - In the VDI terminal, activate the environment by typing `conda activate nobias` and then open the Napari interface by typing `python check_thresholds.py`
+ - Make sure the `config.yaml` file is updated with the correct number of channels and the position of the DAPI channel. For example for a four channel image where DAPI is in the first channel, the config should contain `num_channels: 4` and `dapi_channel: 1`.
  - The Napari interface should appear. Start by using the controls in `Dock widget 1`
- - Load an image by pressing the "Load and Image" button and selecting an image from the output of the preceeding step. IMPORTANT: This shoul be from the `preprocessed_images` folder, NOT the `raw_images` folder
+ - Load an image by pressing the "Load an Image" button and selecting an image from the output of the preceeding step. IMPORTANT: This shoul be from the `preprocessed_images` folder, NOT the `raw_images` folder
  - Test thresholding by selecting a method from the dropdown and selecting `Threshold Image Using Method`. If necessary, the threshold can be adjusted by changing the `Threshold scaling factor` which applies a multiplier to the threshold.
  - Once a thresholding method (and, if necessary, scaling factor) has been chosen for each channel, proceed to `Dock widget 2`
 
 - In `Dock widget 2`, select for each channel the minimum pixel size for objects to be counted as nuclei (default = 100).
-- Select a thresholding method and a scaling for each channel, using the results of the exploration above.
+- Select a thresholding method and a scaling for each channel, using the results of the exploration above. You can also set a minimum value that must be exceeded in order to be counted as positive.
 - Once these have been inputed, select `Apply Threshold to Folder`. In the dialog, select the output folder from the preprocessing step.
 - All outputs will be saved to new folders within this same folder
 
