@@ -1,6 +1,11 @@
 
-raw_folder: '/facility/imganfacusers/Testa/Claudio/20240508singlescene'
-output_folder: '/facility/imganfacusers/Testa/Claudio/ss_hpc'
-dapi_channel: 3
+raw_folder: '/facility//imganfacusers/Testa/Claudio/LIF_file_x_test/'
+output_folder: '/facility/imganfac/neurogenomics/Testa/Claudio/lif_test'
+dapi_channel: 1 #NOT zero indexed (ie 1 = first channel)
 cellpose_model_nd2: 'models/Claudio_nd2'
 cellpose_model_czi: 'models/Claudio_czi'
+cellpose_model_lif: 'models/claudio_lif_v2'
+cellpose_model_other: 'models/Claudio_czi'
+file_extension: 'lif'   #'lif', 'czi', 'nd2' 'tif'
+do_3D: True
+num_channels: 3 #total, including DAPI
