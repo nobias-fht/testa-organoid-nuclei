@@ -35,7 +35,7 @@ with open(CONFIG_NAME, "r") as f:
 
 
 dapi_channel = config['dapi_channel']
-
+dapi_channel = dapi_channel + 1
 num_channels = config['num_channels']
 
 quant_channels = []
@@ -48,7 +48,7 @@ print('total channels = ' + str(num_channels))
 print('channels to quantifty = ' + str(quant_channels))
 print('dapi channel = ' + str(dapi_channel))
 
-dapi_channel = dapi_channel - 1
+
 
 basic_properties = [
         # Basic shape properties
