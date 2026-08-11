@@ -374,11 +374,13 @@ def process_channel(folder_path, file, channel, seg_method, scaling, size_thresh
 
     print('processing channel ' + str(channel))
     seg_im, measure_im = load_images(folder_path, file, channel)
-    rounded_intensity, classification, labels, thresh = threshold_channel(seg_method, seg_im, measure_im, scaling, size_threshold, folder_path, file, 1, organoid_mask, min_val)
+	# Keep only segmented nuclei inside the organoid mask    
+    seg_im_masked = np.multiply(seg_im, organoid_mask)
+    rounded_intensity, classification, labels, thresh = threshold_channel(seg_method, seg_im, measure_im, scaling, size_threshold, folder_path, file, channel, organoid_mask, min_val)
     measure_im_64 = measure_im.astype(np.int64)
     masked_intensity = np.sum(measure_im_64[organoid_mask > 0])
-    nuclear_intensity = np.sum(measure_im_64[seg_im > 0])
-    stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+    nuclear_intensity = np.sum(measure_im_64[seg_im_masked > 0])
+    stats = skimage.measure.regionprops_table(seg_im_masked, intensity_image=measure_im, properties=intensity_properties)    
     int_props_df = pd.DataFrame(stats)
     int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch' + str(channel) + '_intensity_stats.csv'))
     return rounded_intensity, classification, labels, thresh, masked_intensity, nuclear_intensity
@@ -447,13 +449,15 @@ def on_apply_button_click():
 
         ###FUNCTIONALIZE CHANNEL PROCESSING CODE
 
-            #get basic stats:
-            seg_im, measure_im = load_images(folder_path, file, quant_channels[0])
-            stats = skimage.measure.regionprops_table(seg_im, intensity_image=None, properties=basic_properties)    
+        #get basic stats:
+            seg_im, measure_im = load_images(folder_path,file,quant_channels[0])
+            seg_im_masked = np.multiply(seg_im,organoid_mask)
+            stats = skimage.measure.regionprops_table(seg_im_masked,intensity_image=None,properties=basic_properties)
             basic_props_df = pd.DataFrame(stats)
-            basic_props_df.to_csv(os.path.join(folder_path, 'quantification', 'morph_stats.csv'))
+            basic_props_df.to_csv(os.path.join(folder_path,'quantification',file[:-4] + '_morph_stats.csv'),index=False)
 
-#(folder_path, file, channel, seg_method, seg_im, measure_im, scaling, size_threshold, organoid_mask, min_val)
+
+		#(folder_path, file, channel, seg_method, seg_im, measure_im, scaling, size_threshold, organoid_mask, min_val)
             channel_names = []
             rounded_intensities = []
             classifications = []
@@ -527,7 +531,8 @@ def on_apply_button_click():
 
             #generate summary labels
             summary_labels = ['filename', 'total_cells', 'mask_area', 'nuclear_area', 'min_size']
-            summary_data = [file, str(num_cells), np.sum(organoid_mask), np.sum(seg_im > 0), size_threshold]
+            seg_im_masked = np.multiply(seg_im, organoid_mask)
+            summary_data = [file,str(num_cells),np.sum(organoid_mask),np.sum(seg_im_masked > 0),size_threshold]
 
 
             for quant_num in range(0, len(quant_channels)):
