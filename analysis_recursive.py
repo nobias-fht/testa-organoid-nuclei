@@ -178,9 +178,19 @@ dapi_channel = config['dapi_channel']
 file_extension = config['file_extension']
 do_3D = config['do_3D']
 num_channels = config['num_channels']
+
+cellpose_diameter = config.get('cellpose_diameter', None)
+cellpose_cellprob_threshold = config.get('cellpose_cellprob_threshold', 0.0)
+cellpose_flow_threshold = config.get('cellpose_flow_threshold', None)
+cellpose_channels = config.get('cellpose_channels', [0, 0])
+
 print('raw folder: ' + str(raw_folder))
 print('output folder: ' + str(output_folder))
 print('dapi channel: ' + str(dapi_channel))
+print('  diameter:', cellpose_diameter)
+print('  cellprob_threshold:', cellpose_cellprob_threshold)
+print('  flow_threshold:', cellpose_flow_threshold)
+print('  channels:', cellpose_channels)
 
 file_paths = glob.glob(raw_folder + os.path.sep + '**/*.' + file_extension, recursive=True)
 
@@ -252,7 +262,7 @@ for num, file in enumerate(file_paths):
                 masks = skimage.io.imread(masks_folder + os.path.sep + 'seg_' + filename[:-4]  + '.tif')
             else:
                 print('segmenting ' + filename)
-                masks, flows, styles  = model.eval(nuc_im, diameter=None, flow_threshold=None, channels=[0,0])
+                masks, flows, styles = model.eval(nuc_im, diameter=cellpose_diameter, cellprob_threshold=cellpose_cellprob_threshold, flow_threshold=cellpose_flow_threshold, channels=cellpose_channels)
                 skimage.io.imsave(masks_folder + os.path.sep + 'seg_' + filename[:-4]  + '.tif', masks, check_contrast=False)         
 
 
