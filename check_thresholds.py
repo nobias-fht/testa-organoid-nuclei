@@ -65,7 +65,7 @@ basic_properties = [
     ]
 
 intensity_properties = [
-        'max_intensity', 'mean_intensity', 'min_intensity',
+        'label', 'max_intensity', 'mean_intensity', 'min_intensity',
         'weighted_centroid', 'weighted_moments', 'weighted_moments_central',
         'weighted_moments_hu', 'weighted_moments_normalized'
     ]
@@ -384,7 +384,7 @@ def process_channel(folder_path, file, channel, seg_method, scaling, size_thresh
     nuclear_intensity = np.sum(measure_im_64[seg_im_masked > 0])
     stats = skimage.measure.regionprops_table(seg_im_masked, intensity_image=measure_im, properties=intensity_properties)    
     int_props_df = pd.DataFrame(stats)
-    int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch' + str(channel) + '_intensity_stats.csv'))
+    int_props_df.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + 'ch' + str(channel) + '_intensity_stats.csv'))
     return rounded_intensity, classification, labels, thresh, masked_intensity, nuclear_intensity
 
 def on_apply_button_click():
@@ -660,7 +660,144 @@ def on_apply_button_click():
    
 
 
-        new_df.to_csv(os.path.join(folder_path, 'summary.csv'))
+        new_df.to_csv(
+            os.path.join(folder_path, 'summary.csv')
+        )
+
+    # ============================================================
+    # CREATE PCA-READY FEATURE TABLE
+    # ============================================================
+
+    quantification_folder = os.path.join(
+        folder_path,
+        'quantification'
+    )
+
+    pca_morph_features = [
+        'area',
+        'eccentricity',
+        'equivalent_diameter',
+        'extent',
+        'feret_diameter_max',
+        'major_axis_length',
+        'minor_axis_length',
+        'perimeter',
+        'solidity'
+    ]
+
+    all_pca_data = []
+
+    morph_files = [
+        f for f in os.listdir(quantification_folder)
+        if f.endswith('_morph_stats.csv')
+    ]
+
+    for morph_file in morph_files:
+
+        image_name = morph_file.replace(
+            '_morph_stats.csv',
+            ''
+        )
+
+        morph_df = pd.read_csv(
+            os.path.join(
+                quantification_folder,
+                morph_file
+            )
+        )
+
+        # Same minimum-size criterion used by the analysis
+        morph_df = morph_df[
+            morph_df['area'] >= size_threshold
+        ].copy()
+
+        cell_df = morph_df[
+            ['label'] + pca_morph_features
+        ].copy()
+
+        cell_df.insert(
+            0,
+            'file_name',
+            image_name
+        )
+
+        # Add intensity features from each channel
+        for channel in quant_channels:
+
+            intensity_file = (
+                image_name +
+                '_ch' +
+                str(channel) +
+                '_intensity_stats.csv'
+            )
+
+            intensity_path = os.path.join(
+                quantification_folder,
+                intensity_file
+            )
+
+            if not os.path.exists(intensity_path):
+                print(
+                    'Warning: intensity stats not found: ' +
+                    intensity_file
+                )
+                continue
+
+            intensity_df = pd.read_csv(
+                intensity_path
+            )
+
+            intensity_df = intensity_df[
+                [
+                    'label',
+                    'mean_intensity',
+                    'max_intensity'
+                ]
+            ].copy()
+
+            intensity_df = intensity_df.rename(
+                columns={
+                    'mean_intensity':
+                        'ch' + str(channel) + '_mean_intensity',
+
+                    'max_intensity':
+                        'ch' + str(channel) + '_max_intensity'
+                }
+            )
+
+            cell_df = cell_df.merge(
+                intensity_df,
+                on='label',
+                how='inner'
+            )
+
+        all_pca_data.append(cell_df)
+
+    # Combine nuclei from all images
+    if len(all_pca_data) > 0:
+
+        pca_df = pd.concat(
+            all_pca_data,
+            ignore_index=True
+        )
+
+        pca_df.to_csv(
+            os.path.join(
+                quantification_folder,
+                'PCA_features.csv'
+            ),
+            index=False
+        )
+
+        print(
+            'PCA feature table created with ' +
+            str(len(pca_df)) +
+            ' nuclei'
+        )
+
+    else:
+        print('No morphology files found for PCA table')
+
     print('processing complete')
       
 
