@@ -31,12 +31,14 @@ with open(CONFIG_NAME, "r") as f:
 	config = yaml.safe_load(f)
 
 # raw_folder = config['raw_folder']
-# output_folder = config['output_folder']
+output_folder = config['output_folder']
 
 
 dapi_channel = config['dapi_channel']
 dapi_channel = dapi_channel + 1
 num_channels = config['num_channels']
+
+last_path = output_folder
 
 quant_channels = []
 
@@ -68,7 +70,7 @@ intensity_properties = [
         'weighted_moments_hu', 'weighted_moments_normalized'
     ]
 
-last_path = os.getcwd()
+#last_path = os.getcwd()
 
 seg_methos = 'otsu'
 
@@ -387,7 +389,7 @@ def process_channel(folder_path, file, channel, seg_method, scaling, size_thresh
 
 def on_apply_button_click():
 
-    folder_path = easygui.diropenbox(title="Select Processed Image Folder")
+    folder_path = easygui.diropenbox(title="Select Processed Image Folder", default=output_folder )
     print(folder_path)
 
     seg_methods = []
