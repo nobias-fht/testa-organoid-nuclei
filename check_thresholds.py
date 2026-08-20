@@ -31,12 +31,14 @@ with open(CONFIG_NAME, "r") as f:
 	config = yaml.safe_load(f)
 
 # raw_folder = config['raw_folder']
-# output_folder = config['output_folder']
+output_folder = config['output_folder']
 
 
 dapi_channel = config['dapi_channel']
 dapi_channel = dapi_channel + 1
 num_channels = config['num_channels']
+
+last_path = output_folder
 
 quant_channels = []
 
@@ -63,12 +65,12 @@ basic_properties = [
     ]
 
 intensity_properties = [
-        'max_intensity', 'mean_intensity', 'min_intensity',
+        'label', 'max_intensity', 'mean_intensity', 'min_intensity',
         'weighted_centroid', 'weighted_moments', 'weighted_moments_central',
         'weighted_moments_hu', 'weighted_moments_normalized'
     ]
 
-last_path = os.getcwd()
+#last_path = os.getcwd()
 
 seg_methos = 'otsu'
 
@@ -374,18 +376,20 @@ def process_channel(folder_path, file, channel, seg_method, scaling, size_thresh
 
     print('processing channel ' + str(channel))
     seg_im, measure_im = load_images(folder_path, file, channel)
-    rounded_intensity, classification, labels, thresh = threshold_channel(seg_method, seg_im, measure_im, scaling, size_threshold, folder_path, file, 1, organoid_mask, min_val)
+	# Keep only segmented nuclei inside the organoid mask    
+    seg_im_masked = np.multiply(seg_im, organoid_mask)
+    rounded_intensity, classification, labels, thresh = threshold_channel(seg_method, seg_im, measure_im, scaling, size_threshold, folder_path, file, channel, organoid_mask, min_val)
     measure_im_64 = measure_im.astype(np.int64)
     masked_intensity = np.sum(measure_im_64[organoid_mask > 0])
-    nuclear_intensity = np.sum(measure_im_64[seg_im > 0])
-    stats = skimage.measure.regionprops_table(seg_im, intensity_image=measure_im, properties=intensity_properties)    
+    nuclear_intensity = np.sum(measure_im_64[seg_im_masked > 0])
+    stats = skimage.measure.regionprops_table(seg_im_masked, intensity_image=measure_im, properties=intensity_properties)    
     int_props_df = pd.DataFrame(stats)
-    int_props_df.to_csv(os.path.join(folder_path, 'quantification', 'ch' + str(channel) + '_intensity_stats.csv'))
+    int_props_df.to_csv(os.path.join(folder_path, 'quantification', file[:-4] + 'ch' + str(channel) + '_intensity_stats.csv'))
     return rounded_intensity, classification, labels, thresh, masked_intensity, nuclear_intensity
 
 def on_apply_button_click():
 
-    folder_path = easygui.diropenbox(title="Select Processed Image Folder")
+    folder_path = easygui.diropenbox(title="Select Processed Image Folder", default=output_folder )
     print(folder_path)
 
     seg_methods = []
@@ -447,13 +451,15 @@ def on_apply_button_click():
 
         ###FUNCTIONALIZE CHANNEL PROCESSING CODE
 
-            #get basic stats:
-            seg_im, measure_im = load_images(folder_path, file, quant_channels[0])
-            stats = skimage.measure.regionprops_table(seg_im, intensity_image=None, properties=basic_properties)    
+        #get basic stats:
+            seg_im, measure_im = load_images(folder_path,file,quant_channels[0])
+            seg_im_masked = np.multiply(seg_im,organoid_mask)
+            stats = skimage.measure.regionprops_table(seg_im_masked,intensity_image=None,properties=basic_properties)
             basic_props_df = pd.DataFrame(stats)
-            basic_props_df.to_csv(os.path.join(folder_path, 'quantification', 'morph_stats.csv'))
+            basic_props_df.to_csv(os.path.join(folder_path,'quantification',file[:-4] + '_morph_stats.csv'),index=False)
 
-#(folder_path, file, channel, seg_method, seg_im, measure_im, scaling, size_threshold, organoid_mask, min_val)
+
+		#(folder_path, file, channel, seg_method, seg_im, measure_im, scaling, size_threshold, organoid_mask, min_val)
             channel_names = []
             rounded_intensities = []
             classifications = []
@@ -527,7 +533,8 @@ def on_apply_button_click():
 
             #generate summary labels
             summary_labels = ['filename', 'total_cells', 'mask_area', 'nuclear_area', 'min_size']
-            summary_data = [file, str(num_cells), np.sum(organoid_mask), np.sum(seg_im > 0), size_threshold]
+            seg_im_masked = np.multiply(seg_im, organoid_mask)
+            summary_data = [file,str(num_cells),np.sum(organoid_mask),np.sum(seg_im_masked > 0),size_threshold]
 
 
             for quant_num in range(0, len(quant_channels)):
@@ -653,7 +660,144 @@ def on_apply_button_click():
    
 
 
-        new_df.to_csv(os.path.join(folder_path, 'summary.csv'))
+        new_df.to_csv(
+            os.path.join(folder_path, 'summary.csv')
+        )
+
+    # ============================================================
+    # CREATE PCA-READY FEATURE TABLE
+    # ============================================================
+
+    quantification_folder = os.path.join(
+        folder_path,
+        'quantification'
+    )
+
+    pca_morph_features = [
+        'area',
+        'eccentricity',
+        'equivalent_diameter',
+        'extent',
+        'feret_diameter_max',
+        'major_axis_length',
+        'minor_axis_length',
+        'perimeter',
+        'solidity'
+    ]
+
+    all_pca_data = []
+
+    morph_files = [
+        f for f in os.listdir(quantification_folder)
+        if f.endswith('_morph_stats.csv')
+    ]
+
+    for morph_file in morph_files:
+
+        image_name = morph_file.replace(
+            '_morph_stats.csv',
+            ''
+        )
+
+        morph_df = pd.read_csv(
+            os.path.join(
+                quantification_folder,
+                morph_file
+            )
+        )
+
+        # Same minimum-size criterion used by the analysis
+        morph_df = morph_df[
+            morph_df['area'] >= size_threshold
+        ].copy()
+
+        cell_df = morph_df[
+            ['label'] + pca_morph_features
+        ].copy()
+
+        cell_df.insert(
+            0,
+            'file_name',
+            image_name
+        )
+
+        # Add intensity features from each channel
+        for channel in quant_channels:
+
+            intensity_file = (
+                image_name +
+                '_ch' +
+                str(channel) +
+                '_intensity_stats.csv'
+            )
+
+            intensity_path = os.path.join(
+                quantification_folder,
+                intensity_file
+            )
+
+            if not os.path.exists(intensity_path):
+                print(
+                    'Warning: intensity stats not found: ' +
+                    intensity_file
+                )
+                continue
+
+            intensity_df = pd.read_csv(
+                intensity_path
+            )
+
+            intensity_df = intensity_df[
+                [
+                    'label',
+                    'mean_intensity',
+                    'max_intensity'
+                ]
+            ].copy()
+
+            intensity_df = intensity_df.rename(
+                columns={
+                    'mean_intensity':
+                        'ch' + str(channel) + '_mean_intensity',
+
+                    'max_intensity':
+                        'ch' + str(channel) + '_max_intensity'
+                }
+            )
+
+            cell_df = cell_df.merge(
+                intensity_df,
+                on='label',
+                how='inner'
+            )
+
+        all_pca_data.append(cell_df)
+
+    # Combine nuclei from all images
+    if len(all_pca_data) > 0:
+
+        pca_df = pd.concat(
+            all_pca_data,
+            ignore_index=True
+        )
+
+        pca_df.to_csv(
+            os.path.join(
+                quantification_folder,
+                'PCA_features.csv'
+            ),
+            index=False
+        )
+
+        print(
+            'PCA feature table created with ' +
+            str(len(pca_df)) +
+            ' nuclei'
+        )
+
+    else:
+        print('No morphology files found for PCA table')
+
     print('processing complete')
       
 
